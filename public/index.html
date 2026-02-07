@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IA - Title | Z-Time Studio</title>
+    <link rel="icon" type="image/png" href="logo.png">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="no-scroll">
+    <div class="bg-glow"></div>
+
+    <div class="container">
+        <header>
+            <div class="logo">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714z"/>
+                </svg>
+            </div>
+            <h1>Stream Generator</h1>
+            <p>Titres & Notifications Twitch propulses par ChatGPT</p>
+        </header>
+
+        <!-- Login Screen -->
+        <div class="login-screen" id="loginScreen">
+            <div class="login-card">
+                <div class="logo" style="background: linear-gradient(135deg, #5865F2, #4752c4); box-shadow: 0 0 40px rgba(88, 101, 242, 0.3);">
+                    <svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M23.72 1.95A23.04 23.04 0 0 0 17.88.1a.09.09 0 0 0-.09.04c-.25.45-.54.9-.74 1.3a21.28 21.28 0 0 0-6.1 0 14.44 14.44 0 0 0-.75-1.3.09.09 0 0 0-.1-.04 23 23 0 0 0-5.83 1.86.08.08 0 0 0-.04.03C.68 8.33-.41 14.53.13 20.66a.1.1 0 0 0 .04.06 23.14 23.14 0 0 0 7.04 3.63.09.09 0 0 0 .1-.03c.54-.76 1.03-1.57 1.44-2.41a.09.09 0 0 0-.05-.13 15.24 15.24 0 0 1-2.2-1.07.09.09 0 0 1 0-.16c.15-.11.3-.23.44-.35a.09.09 0 0 1 .09-.01c4.61 2.15 9.61 2.15 14.17 0a.09.09 0 0 1 .1.01c.14.12.29.24.44.35a.09.09 0 0 1 0 .16c-.7.42-1.44.78-2.2 1.07a.09.09 0 0 0-.05.13c.42.84.9 1.64 1.44 2.4a.09.09 0 0 0 .1.04 23.07 23.07 0 0 0 7.06-3.63.09.09 0 0 0 .04-.06c.64-6.76-.99-12.63-4.28-17.84a.07.07 0 0 0-.04-.04ZM9.68 16.94c-1.51 0-2.76-1.42-2.76-3.16s1.22-3.16 2.76-3.16c1.56 0 2.79 1.43 2.76 3.16 0 1.74-1.22 3.16-2.76 3.16Zm10.2 0c-1.51 0-2.76-1.42-2.76-3.16s1.22-3.16 2.76-3.16s2.79 1.43 2.76 3.16c0 1.74-1.2 3.16-2.76 3.16Z"/>
+                    </svg>
+                </div>
+                <h2>Connexion requise</h2>
+                <p>Connecte-toi avec Discord pour acceder au generateur. Tu dois etre membre du serveur et avoir le role requis.</p>
+                <a class="btn-discord" href="/auth/discord">
+                    Se connecter avec Discord
+                </a>
+                <div class="login-error" id="loginError"></div>
+            </div>
+        </div>
+
+        <!-- Maintenance Screen -->
+        <div class="maintenance-screen" id="maintenanceScreen">
+            <div class="maintenance-card">
+                <div class="maintenance-icon">&#9888;</div>
+                <h2>Maintenance en cours</h2>
+                <p>Le site est temporairement indisponible pour maintenance. Revenez dans quelques instants.</p>
+            </div>
+        </div>
+
+        <!-- Ban Screen -->
+        <div class="maintenance-screen" id="banScreen">
+            <div class="maintenance-card ban-card">
+                <div class="maintenance-icon ban-icon">&#128683;</div>
+                <h2 class="ban-title">Acces bloque</h2>
+                <p id="banMessage">Ton acces a ete bloque par un administrateur.</p>
+                <div class="ban-details" id="banDetails"></div>
+            </div>
+        </div>
+
+        <!-- App Content (hidden until logged in) -->
+        <div class="app-content" id="appContent">
+
+            <!-- User bar -->
+            <div class="user-bar">
+                <div class="user-info">
+                    <img class="user-avatar" id="userAvatar" src="" alt="Avatar">
+                    <span class="user-name" id="userName"></span>
+                </div>
+                <button class="btn-patchnotes" onclick="openPatchnotes()">
+                    Patchnotes
+                    <span class="patchnote-badge" id="patchnoteBadge"></span>
+                </button>
+                <button class="btn-logout" onclick="logout()">Deconnexion</button>
+            </div>
+
+            <!-- Admin Panel -->
+            <div class="admin-panel" id="adminPanel">
+                <h3 onclick="toggleAdminPanel()" class="admin-panel-toggle"><span class="admin-badge">&#9881;</span> Panel Admin <span class="admin-chevron" id="adminChevron">&#9660;</span></h3>
+                <div class="admin-panel-content" id="adminPanelContent">
+                <div class="admin-controls">
+                    <span class="control-label">Mode maintenance</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenance()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="maintenance-status off" id="maintenanceLabel">Desactive</span>
+                </div>
+                <div class="admin-divider"></div>
+                <h4 class="admin-subtitle">Gestion des utilisateurs</h4>
+                <div class="admin-user-management">
+                    <div class="admin-user-row">
+                        <input type="text" id="adminUserId" placeholder="ID Discord de l'utilisateur" class="patchnote-input" style="flex:1;" onkeydown="if(event.key==='Enter') openUserModal()">
+                        <button class="btn-admin-search" onclick="openUserModal()">Rechercher</button>
+                    </div>
+                </div>
+
+                <!-- Liste des bans actifs -->
+                <div id="adminBansList" class="admin-bans-list"></div>
+
+                <div class="admin-divider"></div>
+                <h4 class="admin-subtitle">Publier une Patchnote</h4>
+                <div class="patchnote-form">
+                    <input type="text" id="patchnoteTitle" placeholder="Titre de la patchnote" class="patchnote-input">
+                    <textarea id="patchnoteContent" placeholder="Contenu de la patchnote..." class="patchnote-textarea"></textarea>
+
+                    <!-- Tags -->
+                    <div class="patchnote-tags-section">
+                        <label class="patchnote-label">Tags</label>
+                        <div class="patchnote-tags-row">
+                            <button type="button" class="tag-toggle" data-tag="Nouveau" onclick="togglePatchnoteTag(this)">Nouveau</button>
+                            <button type="button" class="tag-toggle" data-tag="Fix" onclick="togglePatchnoteTag(this)">Fix</button>
+                            <button type="button" class="tag-toggle" data-tag="Amelioration" onclick="togglePatchnoteTag(this)">Amelioration</button>
+                            <button type="button" class="tag-toggle" data-tag="Important" onclick="togglePatchnoteTag(this)">Important</button>
+                        </div>
+                        <div class="patchnote-custom-tag-row">
+                            <input type="text" id="customTagInput" placeholder="Tag personnalise..." class="patchnote-input" style="flex:1;">
+                            <button type="button" class="btn-add-tag" onclick="addCustomTag()">+</button>
+                        </div>
+                        <div class="patchnote-selected-tags" id="selectedTagsList"></div>
+                    </div>
+
+                    <!-- Schedule -->
+                    <div class="patchnote-schedule-section">
+                        <label class="patchnote-schedule-toggle">
+                            <input type="checkbox" id="scheduleToggle" onchange="toggleSchedule()">
+                            <span>Programmer la publication</span>
+                        </label>
+                        <input type="datetime-local" id="scheduleDateTime" class="patchnote-input patchnote-schedule-input" style="display:none;">
+                    </div>
+
+                    <button class="btn-publish" onclick="publishPatchnote()">Publier</button>
+                </div>
+                <div id="adminPatchnotesList" class="admin-patchnotes-list"></div>
+                </div>
+            </div>
+
+            <!-- Presets -->
+            <div class="card presets-section">
+                <h2><span class="icon">&#9733;</span> Presets</h2>
+                <div class="presets-grid" id="presetsGrid"></div>
+                <div class="add-preset-row">
+                    <input type="text" id="presetName" placeholder="Nom du preset">
+                    <button class="btn-add-preset" onclick="addPreset()">+ Sauvegarder</button>
+                </div>
+                <div class="import-preset-row">
+                    <input type="text" id="importCode" placeholder="Code de partage (ex: abc123)" maxlength="6">
+                    <button class="btn-import-preset" onclick="importPreset()">Importer</button>
+                </div>
+            </div>
+
+            <!-- Generateur de Titres -->
+            <div class="card">
+                <h2><span class="icon">&#9998;</span> Generateur de Titres</h2>
+
+                <!-- Mode Toggle -->
+                <div class="mode-toggle-row">
+                    <button class="mode-btn active" id="modeNormal" onclick="switchMode('normal')">Normal</button>
+                    <button class="mode-btn" id="modeRP" onclick="switchMode('rp')">RP</button>
+                </div>
+
+                <!-- Champs normaux -->
+                <div id="normalFields">
+                    <div class="form-group">
+                        <label for="game">Jeu / Categorie</label>
+                        <input type="text" id="game" placeholder="Ex: Valorant, Just Chatting, Minecraft...">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="mood">Ambiance / Style</label>
+                            <select id="mood">
+                                <option value="fun">Fun & Divertissant</option>
+                                <option value="chill">Chill & Relax</option>
+                                <option value="competitive">Competitif & Tryhard</option>
+                                <option value="hype">Hype & Energique</option>
+                                <option value="mysterious">Mysterieux & Intriguant</option>
+                                <option value="epic">Epique & Heroique</option>
+                                <option value="troll">Troll & Provocateur</option>
+                                <option value="rage">Rage & Tilte</option>
+                                <option value="wholesome">Wholesome & Positif</option>
+                                <option value="chaotic">Chaotique & Imprevisible</option>
+                                <option value="scary">Horrifique & Effrayant</option>
+                                <option value="nostalgic">Nostalgique & Retro</option>
+                                <option value="cozy">Cozy & Reconfontant</option>
+                                <option value="educational">Educatif & Informatif</option>
+                                <option value="challenge">Defi & Challenge</option>
+                                <option value="discovery">Decouverte & Exploration</option>
+                                <option value="custom">Personnalise...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="titleCount">Nombre de titres</label>
+                            <select id="titleCount">
+                                <option value="3">3 titres</option>
+                                <option value="5" selected>5 titres</option>
+                                <option value="10">10 titres</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="customMoodGroup" style="display: none;">
+                        <label for="customMood">Ambiance personnalisee</label>
+                        <input type="text" id="customMood" placeholder="Decrivez l'ambiance souhaitee...">
+                    </div>
+                    <div class="form-group">
+                        <label for="context">Contexte supplementaire (optionnel)</label>
+                        <textarea id="context" placeholder="Ex: C'est mon premier stream, je fais un defi, je joue avec des viewers..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Champs RP -->
+                <div id="rpFields" style="display: none;">
+                    <div class="form-group">
+                        <label for="rpServer">Nom du Serveur</label>
+                        <input type="text" id="rpServer" placeholder="Ex: NoFace WL, FlashBackWL, Noface FA, ...">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="rpCharacter">Nom & Prenom du Personnage</label>
+                            <input type="text" id="rpCharacter" placeholder="Ex: Caleb Winslow">
+                        </div>
+                        <div class="form-group">
+                            <label for="rpEpisode">Numero d'episode <span style="opacity:.5;font-weight:normal">(optionnel)</span></label>
+                            <input type="text" id="rpEpisode" placeholder="Ex: 13" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="rpMood">Ambiance / Style</label>
+                            <select id="rpMood">
+                                <option value="immersif">Immersif & Serieux</option>
+                                <option value="fun">Fun & Delirant</option>
+                                <option value="dramatic">Dramatique & Intense</option>
+                                <option value="chill">Chill & Quotidien</option>
+                                <option value="action">Action & Braquages</option>
+                                <option value="mysterious">Mysterieux & Sombre</option>
+                                <option value="gang">Gang & Territoire</option>
+                                <option value="romantic">Romantique & Sentimental</option>
+                                <option value="comedy">Comedie & Absurde</option>
+                                <option value="political">Politique & Strategique</option>
+                                <option value="survival">Survie & Tension</option>
+                                <option value="undercover">Infiltration & Espionnage</option>
+                                <option value="revenge">Vengeance & Reglement de comptes</option>
+                                <option value="rise">Ascension & Pouvoir</option>
+                                <option value="tragic">Tragique & Emotionnel</option>
+                                <option value="betrayal">Trahison & Manipulation</option>
+                                <option value="heist">Braquage & Casse du siecle</option>
+                                <option value="trial">Proces & Justice</option>
+                                <option value="escape">Cavale & Evasion</option>
+                                <option value="business">Business & Argent</option>
+                                <option value="war">Guerre de gangs & Conflit</option>
+                                <option value="newlife">Nouvelle vie & Renouveau</option>
+                                <option value="chaos">Chaos & Anarchie</option>
+                                <option value="loyalty">Loyaute & Fraternite</option>
+                                <option value="dark">Dark & Psychologique</option>
+                                <option value="hype">Hype & Evenement</option>
+                                <option value="trame">Trame RP & Scenariste</option>
+                                <option value="custom">Personnalise...</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="rpTitleCount">Nombre de titres</label>
+                            <select id="rpTitleCount">
+                                <option value="3">3 titres</option>
+                                <option value="5" selected>5 titres</option>
+                                <option value="10">10 titres</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" id="rpCustomMoodGroup" style="display: none;">
+                        <label for="rpCustomMood">Ambiance personnalisee</label>
+                        <input type="text" id="rpCustomMood" placeholder="Decrivez l'ambiance souhaitee...">
+                    </div>
+                    <div class="form-group">
+                        <label for="rpContext">Contexte de l'episode (optionnel)</label>
+                        <textarea id="rpContext" placeholder="Ex: Mon perso se fait arreter, gros braquage prevu, nouvelle alliance..."></textarea>
+                    </div>
+                </div>
+
+                <button class="btn-generate" onclick="generateTitles()" id="btnGenTitles">Generer des titres</button>
+                <div id="titlesResults" class="results"></div>
+            </div>
+            <div class="history-section" id="titlesHistory"></div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="site-footer">
+            <div class="footer-content">
+                <p class="copyright"><a href="https://discord.gg/votre-lien" target="_blank" style="color: inherit; text-decoration: none;">&copy; 2026 Z-Time Studio. Tous droits reserves.</a></p>
+                <a href="#" class="footer-link" onclick="event.preventDefault(); openCGU()">Conditions Generales d'Utilisation</a>
+            </div>
+        </footer>
+    </div>
+
+    <!-- Modal Patchnotes -->
+    <div class="modal-overlay" id="patchnotesModal" onclick="if(event.target===this) closePatchnotes()">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Patchnotes</h2>
+                <button class="modal-close" onclick="closePatchnotes()">&times;</button>
+            </div>
+            <div class="modal-body" id="patchnotesModalBody">
+                <p style="color: #52525b;">Aucune patchnote pour le moment.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal User Management -->
+    <div class="modal-overlay" id="userModal" onclick="if(event.target===this) closeUserModal()">
+        <div class="modal user-modal">
+            <div class="modal-header">
+                <h2>Gestion utilisateur</h2>
+                <button class="modal-close" onclick="closeUserModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="userModalBody">
+                <div class="loading"><div class="spinner"></div><div>Chargement...</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal CGU -->
+    <div class="modal-overlay" id="cguModal" onclick="if(event.target===this) closeCGU()">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>Conditions Generales d'Utilisation</h2>
+                <button class="modal-close" onclick="closeCGU()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p class="cgu-date">Derniere mise a jour : 30 janvier 2026</p>
+
+                <h3>Article 1 - Objet</h3>
+                <p>Les presentes Conditions Generales d'Utilisation (CGU) regissent l'acces et l'utilisation du service Stream Generator (ci-apres "le Service"), edite par Z-Time Studio. Le Service permet de generer des titres de stream et des notifications pour la plateforme Twitch a l'aide de l'intelligence artificielle.</p>
+
+                <h3>Article 2 - Acces au Service</h3>
+                <p>L'acces au Service est reserve aux utilisateurs disposant d'un compte Discord, membres d'un serveur Discord specifique et titulaires du role requis. L'authentification s'effectue via le protocole OAuth2 de Discord. Z-Time Studio se reserve le droit de modifier les conditions d'acces a tout moment.</p>
+
+                <h3>Article 3 - Description du Service</h3>
+                <p>Le Service propose :</p>
+                <ul>
+                    <li>La generation de titres de stream Twitch personnalises</li>
+                    <li>La generation de notifications d'annonce pour les streams</li>
+                    <li>Un systeme de presets pour sauvegarder les preferences de style</li>
+                </ul>
+                <p>Le contenu est genere par un modele d'intelligence artificielle (OpenAI). Z-Time Studio ne garantit pas la pertinence, l'exactitude ou l'originalite du contenu genere.</p>
+
+                <h3>Article 4 - Responsabilite de l'utilisateur</h3>
+                <p>L'utilisateur s'engage a :</p>
+                <ul>
+                    <li>Utiliser le Service de maniere conforme aux lois en vigueur</li>
+                    <li>Ne pas generer de contenu illegal, haineux, discriminatoire ou contraire aux conditions d'utilisation de Twitch</li>
+                    <li>Ne pas tenter de contourner les mecanismes d'authentification ou de securite</li>
+                    <li>Ne pas surcharger le Service par des requetes automatisees ou abusives</li>
+                </ul>
+                <p>L'utilisateur est seul responsable du contenu qu'il choisit d'utiliser sur sa chaine Twitch ou tout autre support.</p>
+
+                <h3>Article 5 - Propriete intellectuelle</h3>
+                <p>Le design, le code source et la marque Stream Generator sont la propriete de Z-Time Studio. Le contenu genere par l'IA peut etre librement utilise par l'utilisateur pour ses streams et communications Twitch, sans exclusivite. Des contenus similaires peuvent etre generes pour d'autres utilisateurs.</p>
+
+                <h3>Article 6 - Donnees personnelles</h3>
+                <p>Le Service collecte les donnees suivantes via Discord OAuth2 :</p>
+                <ul>
+                    <li>Identifiant Discord</li>
+                    <li>Nom d'utilisateur Discord</li>
+                    <li>Avatar Discord</li>
+                    <li>Appartenance au serveur et roles</li>
+                </ul>
+                <p>Ces donnees sont utilisees exclusivement pour l'authentification et ne sont pas partagees avec des tiers. Les donnees de session sont stockees temporairement sur le serveur. Aucun contenu genere n'est conserve cote serveur.</p>
+
+                <h3>Article 7 - Disponibilite du Service</h3>
+                <p>Z-Time Studio s'efforce de maintenir le Service accessible en permanence mais ne garantit aucune disponibilite. Le Service peut etre interrompu pour maintenance, mise a jour ou pour toute autre raison, sans preavis ni indemnisation.</p>
+
+                <h3>Article 8 - Limitation de responsabilite</h3>
+                <p>Z-Time Studio ne saurait etre tenu responsable :</p>
+                <ul>
+                    <li>Du contenu genere par l'intelligence artificielle</li>
+                    <li>De l'utilisation faite par l'utilisateur du contenu genere</li>
+                    <li>Des interruptions de service ou pertes de donnees</li>
+                    <li>Des consequences liees a l'utilisation du contenu sur Twitch ou toute autre plateforme</li>
+                </ul>
+
+                <h3>Article 9 - Modification des CGU</h3>
+                <p>Z-Time Studio se reserve le droit de modifier les presentes CGU a tout moment. Les utilisateurs seront informes des modifications lors de leur prochaine connexion. La poursuite de l'utilisation du Service vaut acceptation des CGU modifiees.</p>
+
+                <h3>Article 10 - Contact</h3>
+                <p>Pour toute question relative aux presentes CGU ou au Service, vous pouvez nous contacter via le serveur Discord de Z-Time Studio.</p>
+
+                <h3>Article 11 - Droit applicable</h3>
+                <p>Les presentes CGU sont soumises au droit francais. En cas de litige, les tribunaux francais seront seuls competents.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- State ---
+        let currentUser = null;
+        let presets = [];
+        let activePreset = null;
+        let titleHistory = [];
+        let lastReadPatchnote = 0;
+        let patchnotesList = [];
+        let eventSource = null;
+        let serverVersion = null;
+        let selectedTags = [];
+        let currentMode = 'normal';
+
+        // --- Init ---
+        document.addEventListener('DOMContentLoaded', () => {
+            // Connexion SSE globale AVANT l'auth pour recevoir
+            // les events maintenance/patchnotes meme sans etre connecte
+            connectSSE();
+            checkAuth();
+
+            // Initialiser les custom selects
+            initCustomSelects();
+
+            document.getElementById('mood').addEventListener('change', (e) => {
+                document.getElementById('customMoodGroup').style.display =
+                    e.target.value === 'custom' ? 'block' : 'none';
+            });
+
+            document.getElementById('rpMood').addEventListener('change', (e) => {
+                document.getElementById('rpCustomMoodGroup').style.display =
+                    e.target.value === 'custom' ? 'block' : 'none';
+            });
+
+            // Check for login error in URL
+            const params = new URLSearchParams(window.location.search);
+            const error = params.get('error');
+            if (error) {
+                const errorDiv = document.getElementById('loginError');
+                const messages = {
+                    'not_in_guild': 'Tu dois etre membre du serveur Discord requis.',
+                    'missing_role': 'Tu n\'as pas le role "Acces au site" sur le serveur Discord.',
+                    'guild_fetch_failed': 'Impossible de verifier ton serveur Discord. Reessaie.',
+                    'auth_failed': 'Erreur lors de la connexion avec Discord. Reessaie.',
+                    'banned': 'Ton acces a ete bloque. Contacte un administrateur pour plus d\'informations.'
+                };
+                errorDiv.textContent = messages[error] || 'Erreur de connexion.';
+                errorDiv.classList.add('visible');
+                window.history.replaceState({}, '', '/');
+            }
+
+        });
+
+        // --- Auth ---
+        async function checkAuth() {
+            try {
+                const res = await fetch('/auth/me');
+                if (res.ok) {
+                    const user = await res.json();
+                    currentUser = user;
+
+                    // If user is banned, show ban screen
+                    if (user.banned && !user.isAdmin) {
+                        showBanned(user.banInfo);
+                        return;
+                    }
+
+                    // If maintenance is on and user is not admin, show maintenance
+                    if (user.maintenance && !user.isAdmin) {
+                        showMaintenance();
+                        return;
+                    }
+
+                    showApp(user);
+                } else {
+                    // Not logged in, check if maintenance
+                    const statusRes = await fetch('/api/status');
+                    if (statusRes.ok) {
+                        const status = await statusRes.json();
+                        if (status.maintenance) {
+                            showMaintenance();
+                            return;
+                        }
+                    }
+                    showLogin();
+                }
+            } catch {
+                showLogin();
+            }
+        }
+
+        async function showApp(user) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('maintenanceScreen').classList.remove('visible');
+            document.getElementById('appContent').classList.add('visible');
+            document.body.classList.remove('no-scroll');
+            document.getElementById('userName').textContent = user.username;
+            const avatarUrl = user.avatar
+                ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
+                : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0') % 5}.png`;
+            document.getElementById('userAvatar').src = avatarUrl;
+
+            // Show admin panel if admin
+            if (user.isAdmin) {
+                document.getElementById('adminPanel').classList.add('visible');
+                document.getElementById('maintenanceToggle').checked = user.maintenance;
+                updateMaintenanceLabel(user.maintenance);
+                restoreAdminPanelState();
+                loadAdminBans();
+            }
+
+            // Charger les donnees de l'utilisateur depuis le serveur
+            await loadUserData();
+
+            // Charger les patchnotes
+            await loadPatchnotes();
+        }
+
+        function showLogin() {
+            document.getElementById('loginScreen').style.display = 'flex';
+            document.getElementById('maintenanceScreen').classList.remove('visible');
+            document.getElementById('banScreen').classList.remove('visible');
+            document.getElementById('appContent').classList.remove('visible');
+            document.body.classList.add('no-scroll');
+        }
+
+        function showMaintenance() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContent').classList.remove('visible');
+            document.getElementById('banScreen').classList.remove('visible');
+            document.getElementById('maintenanceScreen').classList.add('visible');
+            document.body.classList.add('no-scroll');
+        }
+
+        function showBanned(banInfo) {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('appContent').classList.remove('visible');
+            document.getElementById('maintenanceScreen').classList.remove('visible');
+            document.getElementById('banScreen').classList.add('visible');
+            document.body.classList.add('no-scroll');
+
+            const detailsDiv = document.getElementById('banDetails');
+            let html = '';
+            if (banInfo) {
+                if (banInfo.reason) {
+                    html += `<p><strong>Raison :</strong> ${escapeHtml(banInfo.reason)}</p>`;
+                }
+                if (banInfo.permanent) {
+                    html += `<p><strong>Duree :</strong> Permanent</p>`;
+                } else if (banInfo.until) {
+                    const until = new Date(banInfo.until);
+                    html += `<p><strong>Expire le :</strong> ${until.toLocaleString('fr-FR')}</p>`;
+                }
+            }
+            detailsDiv.innerHTML = html;
+        }
+
+        async function logout() {
+            await fetch('/auth/logout');
+            currentUser = null;
+            showLogin();
+        }
+
+        // --- Admin ---
+        function toggleAdminPanel() {
+            const content = document.getElementById('adminPanelContent');
+            const chevron = document.getElementById('adminChevron');
+            content.classList.toggle('collapsed');
+            chevron.classList.toggle('collapsed');
+            localStorage.setItem('adminPanelCollapsed', content.classList.contains('collapsed'));
+        }
+
+        function restoreAdminPanelState() {
+            if (localStorage.getItem('adminPanelCollapsed') === 'true') {
+                document.getElementById('adminPanelContent').classList.add('collapsed');
+                document.getElementById('adminChevron').classList.add('collapsed');
+            }
+        }
+
+        async function toggleMaintenance() {
+            const enabled = document.getElementById('maintenanceToggle').checked;
+            try {
+                const res = await fetch('/admin/maintenance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+                if (res.ok) {
+                    const data = await res.json();
+                    updateMaintenanceLabel(data.maintenance);
+                }
+            } catch (err) {
+                document.getElementById('maintenanceToggle').checked = !enabled;
+            }
+        }
+
+        function updateMaintenanceLabel(isOn) {
+            const label = document.getElementById('maintenanceLabel');
+            if (isOn) {
+                label.textContent = 'Active';
+                label.className = 'maintenance-status on';
+            } else {
+                label.textContent = 'Desactive';
+                label.className = 'maintenance-status off';
+            }
+        }
+
+        // --- Admin User Management ---
+        // --- Admin User Modal ---
+        let currentModalUserId = null;
+
+        async function openUserModal() {
+            const userId = document.getElementById('adminUserId').value.trim();
+            if (!userId) return showToast('Entre un ID Discord.', 'warning');
+
+            currentModalUserId = userId;
+            document.getElementById('userModal').classList.add('visible');
+            document.body.style.overflow = 'hidden';
+            document.getElementById('userModalBody').innerHTML = '<div class="loading"><div class="spinner"></div><div>Chargement...</div></div>';
+
+            try {
+                const res = await fetch(`/admin/user/${userId}`);
+                if (!res.ok) { showToast('Erreur serveur', 'error'); closeUserModal(); return; }
+                const data = await res.json();
+                renderUserModal(data);
+                initCustomSelects();
+            } catch (err) {
+                showToast('Erreur de connexion', 'error');
+                closeUserModal();
+            }
+        }
+
+        function closeUserModal() {
+            document.getElementById('userModal').classList.remove('visible');
+            document.body.style.overflow = '';
+            currentModalUserId = null;
+        }
+
+        function renderUserModal(data) {
+            const body = document.getElementById('userModalBody');
+            const profile = data.profile;
+            const avatarUrl = profile && profile.avatar
+                ? `https://cdn.discordapp.com/avatars/${data.userId}/${profile.avatar}.png?size=64`
+                : `https://cdn.discordapp.com/embed/avatars/0.png`;
+            const username = profile ? profile.username : 'Inconnu';
+            const firstSeen = data.firstSeen ? new Date(data.firstSeen).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Inconnue';
+            const lastLogin = profile && profile.lastLogin ? new Date(profile.lastLogin).toLocaleString('fr-FR') : 'Inconnue';
+
+            let html = '';
+
+            // --- Header profil ---
+            html += `<div class="um-profile">
+                <img class="um-avatar" src="${avatarUrl}" alt="Avatar">
+                <div class="um-profile-info">
+                    <div class="um-username">${escapeHtml(username)}</div>
+                    <div class="um-userid">${escapeHtml(data.userId)}</div>
+                </div>
+                ${data.banned ? '<span class="um-badge um-badge-banned">BANNI</span>' : '<span class="um-badge um-badge-ok">ACTIF</span>'}
+            </div>`;
+
+            // --- Infos ---
+            html += `<div class="um-info-grid">
+                <div class="um-info-item"><span class="um-info-label">Premiere connexion</span><span class="um-info-value">${firstSeen}</span></div>
+                <div class="um-info-item"><span class="um-info-label">Derniere connexion</span><span class="um-info-value">${lastLogin}</span></div>
+                <div class="um-info-item"><span class="um-info-label">Presets</span><span class="um-info-value">${data.presetsCount}</span></div>
+                <div class="um-info-item"><span class="um-info-label">Titres generes</span><span class="um-info-value">${data.titleHistory.length} sessions</span></div>
+            </div>`;
+
+            // --- Ban info si banni ---
+            if (data.banned && data.banInfo) {
+                let dur = 'Permanent';
+                if (!data.banInfo.permanent && data.banInfo.until) {
+                    dur = 'Jusqu\'au ' + new Date(data.banInfo.until).toLocaleString('fr-FR');
+                }
+                html += `<div class="um-ban-info">
+                    <div class="um-ban-header">Informations du ban</div>
+                    ${data.banInfo.reason ? '<p><strong>Raison :</strong> ' + escapeHtml(data.banInfo.reason) + '</p>' : '<p><strong>Raison :</strong> Aucune</p>'}
+                    <p><strong>Duree :</strong> ${escapeHtml(dur)}</p>
+                    <p><strong>Date du ban :</strong> ${data.banInfo.date ? new Date(data.banInfo.date).toLocaleString('fr-FR') : 'Inconnue'}</p>
+                </div>`;
+            }
+
+            // --- Actions ---
+            html += '<div class="um-actions">';
+            if (data.banned) {
+                html += `<button class="btn-admin-action btn-unban" onclick="modalUnban()">Debannir</button>`;
+            } else {
+                html += `<div class="um-ban-form">
+                    <input type="text" id="modalBanReason" placeholder="Raison du ban (optionnel)" class="patchnote-input">
+                    <div class="admin-user-row">
+                        <select id="modalBanDuration" class="patchnote-input admin-select">
+                            <option value="30">30 minutes</option>
+                            <option value="60">1 heure</option>
+                            <option value="360">6 heures</option>
+                            <option value="1440">24 heures</option>
+                            <option value="4320">3 jours</option>
+                            <option value="10080">7 jours</option>
+                            <option value="43200">30 jours</option>
+                            <option value="permanent">Permanent</option>
+                        </select>
+                        <button class="btn-admin-ban" onclick="modalBan()">Bannir</button>
+                    </div>
+                </div>`;
+            }
+            html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
+            html += '</div>';
+
+            // --- Historique ---
+            if (data.titleHistory.length > 0) {
+                html += '<div class="um-history">';
+                html += '<div class="um-history-header">Historique des titres</div>';
+                data.titleHistory.forEach(item => {
+                    html += `<div class="um-history-item">
+                        <div class="um-history-meta">${escapeHtml(item.date || '')}${item.game ? ' &middot; ' + escapeHtml(item.game) : ''}</div>`;
+                    if (item.titles) {
+                        item.titles.forEach(t => {
+                            html += `<div class="um-history-title">${escapeHtml(t)}</div>`;
+                        });
+                    }
+                    html += '</div>';
+                });
+                html += '</div>';
+            }
+
+            body.innerHTML = html;
+        }
+
+        async function modalBan() {
+            if (!currentModalUserId) return;
+            const reason = document.getElementById('modalBanReason').value.trim();
+            const durationVal = document.getElementById('modalBanDuration').value;
+            const body = { userId: currentModalUserId, reason };
+            if (durationVal === 'permanent') { body.permanent = true; } else { body.duration = parseInt(durationVal); }
+
+            try {
+                const res = await fetch('/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                let data; try { data = await res.json(); } catch { data = {}; }
+                if (res.ok) {
+                    showToast('Utilisateur banni.', 'success');
+                    loadAdminBans();
+                    openUserModal(); // Refresh modal
+                } else { showToast(data.error || 'Erreur', 'error'); }
+            } catch { showToast('Erreur de connexion', 'error'); }
+        }
+
+        async function modalUnban() {
+            if (!currentModalUserId) return;
+            try {
+                const res = await fetch('/admin/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId }) });
+                let data; try { data = await res.json(); } catch { data = {}; }
+                if (res.ok) {
+                    showToast('Utilisateur debanni.', 'success');
+                    loadAdminBans();
+                    openUserModal(); // Refresh modal
+                } else { showToast(data.error || 'Erreur', 'error'); }
+            } catch { showToast('Erreur de connexion', 'error'); }
+        }
+
+        async function modalClearHistory() {
+            if (!currentModalUserId) return;
+            showConfirm('Supprimer l\'historique de cet utilisateur ?', async () => {
+                try {
+                    const res = await fetch('/admin/clear-history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId }) });
+                    let data; try { data = await res.json(); } catch { data = {}; }
+                    if (res.ok) {
+                        showToast('Historique supprime.', 'success');
+                        openUserModal(); // Refresh modal
+                    } else { showToast(data.error || 'Erreur', 'error'); }
+                } catch { showToast('Erreur de connexion', 'error'); }
+            });
+        }
+
+        async function loadAdminBans() {
+            try {
+                const res = await fetch('/admin/bans');
+                if (!res.ok) return;
+                const bans = await res.json();
+                renderAdminBans(bans);
+            } catch (err) {}
+        }
+
+        function renderAdminBans(bans) {
+            const container = document.getElementById('adminBansList');
+            const entries = Object.entries(bans);
+            if (entries.length === 0) { container.innerHTML = ''; return; }
+
+            let html = '<h4 class="admin-subtitle" style="margin-top:12px;">Bans actifs</h4>';
+            entries.forEach(([userId, ban]) => {
+                const isExpired = !ban.permanent && ban.until && new Date(ban.until) <= new Date();
+                if (isExpired) return;
+                let duration = 'Permanent';
+                if (!ban.permanent && ban.until) { duration = 'Jusqu\'au ' + new Date(ban.until).toLocaleString('fr-FR'); }
+
+                html += `<div class="admin-ban-item" style="cursor:pointer" onclick="document.getElementById('adminUserId').value='${escapeJs(userId)}'; openUserModal();">
+                    <div class="admin-ban-info">
+                        <strong>${escapeHtml(userId)}</strong>
+                        <span class="admin-ban-meta">${escapeHtml(duration)}${ban.reason ? ' &middot; ' + escapeHtml(ban.reason) : ''}</span>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        // --- User Data Sync ---
+        async function loadUserData() {
+            try {
+                const res = await fetch('/api/userdata');
+                if (res.ok) {
+                    const data = await res.json();
+                    presets = data.presets || [];
+                    titleHistory = data.titleHistory || [];
+                    lastReadPatchnote = data.lastReadPatchnote || 0;
+                    renderPresets();
+                    renderHistory();
+                }
+            } catch (err) {
+                console.error('Erreur chargement donnees:', err);
+            }
+        }
+
+        async function saveUserData() {
+            try {
+                await fetch('/api/userdata', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ presets, titleHistory, lastReadPatchnote })
+                });
+            } catch (err) {
+                console.error('Erreur sauvegarde donnees:', err);
+            }
+        }
+
+        // --- API Call (through backend) ---
+        async function callChatGPT(systemPrompt, userPrompt, meta) {
+            const response = await fetch('/api/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ systemPrompt, userPrompt, meta })
+            });
+
+            if (response.status === 401) {
+                showLogin();
+                throw new Error('Session expiree. Reconnecte-toi.');
+            }
+
+            if (response.status === 403) {
+                const banData = await response.json().catch(() => ({}));
+                if (banData.error === 'banned') {
+                    showBanned({
+                        reason: banData.reason,
+                        permanent: banData.permanent,
+                        until: banData.until
+                    });
+                    throw new Error('banned');
+                }
+            }
+
+            if (response.status === 503) {
+                showMaintenance();
+                throw new Error('Le site est en maintenance.');
+            }
+
+            if (!response.ok) {
+                const err = await response.json().catch(() => ({}));
+                throw new Error(err.error || `Erreur serveur (${response.status})`);
+            }
+
+            const data = await response.json();
+            return data.content;
+        }
+
+        // --- Presets ---
+        function addPreset() {
+            const name = document.getElementById('presetName').value.trim();
+            if (!name) return;
+            const preset = {
+                id: Date.now(),
+                name,
+                mode: currentMode,
+                game: document.getElementById('game').value.trim(),
+                mood: document.getElementById('mood').value,
+                customMood: document.getElementById('customMood').value.trim(),
+                context: document.getElementById('context').value.trim(),
+                titleCount: document.getElementById('titleCount').value,
+                rpServer: document.getElementById('rpServer').value.trim(),
+                rpCharacter: document.getElementById('rpCharacter').value.trim(),
+                rpEpisode: document.getElementById('rpEpisode').value.trim(),
+                rpMood: document.getElementById('rpMood').value,
+                rpCustomMood: document.getElementById('rpCustomMood').value.trim(),
+                rpContext: document.getElementById('rpContext').value.trim(),
+                rpTitleCount: document.getElementById('rpTitleCount').value
+            };
+            presets.push(preset);
+            saveUserData();
+            document.getElementById('presetName').value = '';
+            renderPresets();
+        }
+
+        function deletePreset(id) {
+            presets = presets.filter(p => p.id !== id);
+            saveUserData();
+            if (activePreset === id) activePreset = null;
+            renderPresets();
+        }
+
+        function selectPreset(id) {
+            const preset = presets.find(p => p.id === id);
+            if (!preset) return;
+            activePreset = id;
+
+            switchMode(preset.mode || 'normal');
+
+            document.getElementById('game').value = preset.game || '';
+            document.getElementById('mood').value = preset.mood || 'fun';
+            document.getElementById('customMood').value = preset.customMood || '';
+            document.getElementById('customMoodGroup').style.display = preset.mood === 'custom' ? 'block' : 'none';
+            document.getElementById('context').value = preset.context || '';
+            document.getElementById('titleCount').value = preset.titleCount || '5';
+
+            document.getElementById('rpServer').value = preset.rpServer || '';
+            document.getElementById('rpCharacter').value = preset.rpCharacter || '';
+            document.getElementById('rpEpisode').value = preset.rpEpisode || '';
+            document.getElementById('rpMood').value = preset.rpMood || 'immersif';
+            document.getElementById('rpCustomMood').value = preset.rpCustomMood || '';
+            document.getElementById('rpCustomMoodGroup').style.display = preset.rpMood === 'custom' ? 'block' : 'none';
+            document.getElementById('rpContext').value = preset.rpContext || '';
+            document.getElementById('rpTitleCount').value = preset.rpTitleCount || '5';
+
+            syncAllCustomSelects();
+            renderPresets();
+        }
+
+        function renderPresets() {
+            const grid = document.getElementById('presetsGrid');
+            if (presets.length === 0) {
+                grid.innerHTML = '<div style="color: #52525b; font-size: 0.88rem; padding: 8px 0;">Aucun preset. Configurez le formulaire puis sauvegardez.</div>';
+                return;
+            }
+            grid.innerHTML = presets.map(p => {
+                const isRP = p.mode === 'rp';
+                const subtitle = isRP ? (p.rpServer || 'RP') : (p.game || 'Normal');
+                const modeLabel = isRP ? 'RP' : 'Normal';
+                return `
+                    <div class="preset-card ${activePreset === p.id ? 'active' : ''}" data-mode="${p.mode || 'normal'}" onclick="selectPreset(${p.id})">
+                        <div class="preset-actions">
+                            <button class="preset-share" onclick="event.stopPropagation(); sharePreset(${p.id})" title="Partager">&#128279;</button>
+                            <button class="preset-delete" onclick="event.stopPropagation(); deletePreset(${p.id})">&#10005;</button>
+                        </div>
+                        <div class="preset-name">${escapeHtml(p.name)}</div>
+                        <div class="preset-style">${escapeHtml(modeLabel)} &middot; ${escapeHtml(subtitle)}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // --- Preset Sharing ---
+        async function sharePreset(id) {
+            const preset = presets.find(p => p.id === id);
+            if (!preset) return;
+
+            try {
+                const res = await fetch('/api/presets/share', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ preset, presetId: preset.id })
+                });
+
+                if (res.status === 401) { showLogin(); return; }
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.error || 'Erreur lors du partage', 'error');
+                    return;
+                }
+
+                navigator.clipboard.writeText(data.code).then(() => {
+                    showToast(`Code copie : ${data.code}`, 'success', 6000);
+                }).catch(() => {
+                    showToast(`Code de partage : ${data.code}`, 'success', 8000);
+                });
+            } catch (err) {
+                showToast('Erreur de connexion', 'error');
+            }
+        }
+
+        async function importPreset() {
+            const codeInput = document.getElementById('importCode');
+            const code = codeInput.value.trim().toLowerCase();
+
+            if (!code) {
+                showToast('Entre un code de partage.', 'warning');
+                return;
+            }
+
+            if (!/^[a-z0-9]{6}$/.test(code)) {
+                showToast('Code invalide (6 caracteres attendus).', 'warning');
+                return;
+            }
+
+            if (presets.length >= 20) {
+                showToast('Tu as deja 20 presets. Supprime-en un avant d\'importer.', 'warning');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/presets/import/${code}`);
+
+                if (res.status === 401) { showLogin(); return; }
+
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showToast(data.error || 'Erreur lors de l\'import', 'error');
+                    return;
+                }
+
+                const fieldsToCheck = [
+                    data.preset.name, data.preset.game, data.preset.customMood,
+                    data.preset.context, data.preset.rpServer, data.preset.rpCharacter,
+                    data.preset.rpCustomMood, data.preset.rpContext
+                ];
+                for (const field of fieldsToCheck) {
+                    if (field && containsBannedWords(field)) {
+                        showToast('Ce preset contient du contenu inapproprie.', 'error');
+                        return;
+                    }
+                }
+
+                const newPreset = {
+                    id: Date.now(),
+                    ...data.preset
+                };
+
+                presets.push(newPreset);
+                saveUserData();
+                renderPresets();
+                codeInput.value = '';
+                showToast(`Preset "${newPreset.name}" importe !`, 'success');
+            } catch (err) {
+                showToast('Erreur de connexion', 'error');
+            }
+        }
+
+        // --- Mode Switch ---
+        function switchMode(mode) {
+            currentMode = mode;
+            document.getElementById('modeNormal').classList.toggle('active', mode === 'normal');
+            document.getElementById('modeRP').classList.toggle('active', mode === 'rp');
+            document.getElementById('normalFields').style.display = mode === 'normal' ? 'block' : 'none';
+            document.getElementById('rpFields').style.display = mode === 'rp' ? 'block' : 'none';
+            // Initialiser les custom selects pour les nouveaux champs visibles
+            initCustomSelects();
+        }
+
+        // --- Banned words filter ---
+        const BANNED_WORDS = [
+            'hitler', 'adolf', 'nazi', 'staline', 'mussolini', 'reich',
+            'fdp', 'ntm', 'nique', 'enculer', 'encule', 'enculé',
+            'connard', 'connasse', 'salope', 'salaud', 'putain', 'pute',
+            'merde', 'ta gueule', 'tg', 'ferme ta gueule', 'ftg',
+            'pd', 'pedal', 'pédale', 'tapette', 'gouine',
+            'negre', 'nègre', 'bougnoule', 'arabe de merde', 'sale juif',
+            'terroriste', 'jihad', 'isis', 'daesh',
+            'fils de pute', 'fils de p', 'batard', 'bâtard',
+            'niquer', 'niker', 'nik ', 'sucer', 'suce',
+            'triso', 'mongol', 'attardé', 'attarde',
+            'ss ', 'gestapo', 'fasciste', 'supremaciste',
+            'ku klux', 'kkk'
+        ];
+
+        function containsBannedWords(text) {
+            const lower = text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+            const lowerRaw = text.toLowerCase();
+            for (const word of BANNED_WORDS) {
+                const wordNorm = word.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+                if (lower.includes(wordNorm) || lowerRaw.includes(word)) return true;
+            }
+            return false;
+        }
+
+        // --- Generate Titles ---
+        async function generateTitles() {
+            const btn = document.getElementById('btnGenTitles');
+            const resultsDiv = document.getElementById('titlesResults');
+            let systemPrompt, userPrompt, count, game;
+
+            // Check all text fields for banned content
+            const fieldsToCheck = currentMode === 'rp'
+                ? ['rpServer', 'rpCharacter', 'rpContext', 'rpCustomMood']
+                : ['game', 'context', 'customMood'];
+            for (const id of fieldsToCheck) {
+                const el = document.getElementById(id);
+                if (el && containsBannedWords(el.value)) {
+                    resultsDiv.innerHTML = '<div class="error-msg">Contenu inapproprie detecte. Merci de modifier votre saisie.</div>';
+                    return;
+                }
+            }
+
+            if (currentMode === 'rp') {
+                const server = document.getElementById('rpServer').value.trim();
+                const character = document.getElementById('rpCharacter').value.trim();
+                const episode = document.getElementById('rpEpisode').value.trim();
+                const rpMoodSelect = document.getElementById('rpMood').value;
+                const rpCustomMood = document.getElementById('rpCustomMood').value.trim();
+                const rpContext = document.getElementById('rpContext').value.trim();
+                count = document.getElementById('rpTitleCount').value;
+
+                if (!server) {
+                    resultsDiv.innerHTML = '<div class="error-msg">Veuillez indiquer le nom du serveur.</div>';
+                    return;
+                }
+
+                game = server;
+                const rpMood = rpMoodSelect === 'custom' ? rpCustomMood : rpMoodSelect;
+
+                btn.disabled = true;
+                resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><div>Generation en cours...</div></div>';
+
+                systemPrompt = `Tu es un expert en titres de stream Twitch RP francophones. Tu connais parfaitement les codes de la communaute RP (GTA RP, FiveM, etc.).
+
+Regles strictes :
+- Chaque titre DOIT contenir le nom du serveur
+- Max 140 caracteres
+- Utilise des teasing narratifs ("La trahison...", "Il ne sait pas encore que...")
+- Integre le nom du personnage quand fourni
+- Integre le numero d'episode UNIQUEMENT s'il est fourni (ne jamais en inventer un)
+- Varie les formats : questions, suspense, annonces dramatiques, cliffhangers, humour RP
+- Utilise 2-4 emojis par titre pour le rendre vivant et accrocheur
+- Choisis des emojis COHERENTS avec le contexte : ambiance dramatique = emojis sombres/intenses, ambiance fun = emojis joyeux/delirants, action = emojis explosifs/dynamiques
+- Place les emojis de maniere strategique : en debut pour capter l'attention, entre les sections pour separer visuellement, ou en fin pour ponctuer l'emotion
+- Exemples d'emojis par ambiance : immersif (🌑🔮🎭🗡️), fun (😂🤣🎉💀), dramatique (💔😱⚡🔥), chill (☕🌿😌🎶), action (💥🔫🚗💰), mysterieux (👀🕵️❓🌙), gang (🔫💀👊🏴), romantique (💕❤️🌹😍), comedie (🤡😂🎪🤣), politique (🏛️👑🤝📜), survie (⚠️😰🩸🔪), infiltration (🕵️🤫🔍🎭), vengeance (⚔️🔥💀😤), ascension (👑📈💪🏆), tragique (😢💔🥀⚰️), trahison (🗡️🐍💔🎭), braquage (💰🏦💎🔫), proces (⚖️🔨👨‍⚖️🚔), cavale (🏃💨🚗🚨), business (💰💼📊🤑), guerre (⚔️💣🔥☠️), nouvelle vie (🌅🌱🆕✨), chaos (🌪️💥🔥😈), loyaute (🤝💪❤️🛡️), dark (🖤🌑😶‍🌫️🕳️), hype (🔥🎉⚡🚀), trame (📖🎬🎭🔮)
+- REGLE CRUCIALE : chaque emoji doit avoir un LIEN DIRECT avec le contenu du titre et le contexte de l'episode. Pas d'emojis decoratifs ou au hasard. Si le titre parle d'un braquage, utilise des emojis de braquage (💰🔫). Si le contexte mentionne une arrestation, utilise 🚔⚖️. Adapte les emojis au sens precis du titre.
+- Inspire-toi des vrais titres de streamers RP populaires
+- Ne mets JAMAIS de numerotation, tirets ou prefixes. Un titre par ligne.
+
+Regles de moderation ABSOLUES (JAMAIS d'exception) :
+- Ne JAMAIS generer de contenu haineux, raciste, sexiste, homophobe ou discriminatoire
+- Ne JAMAIS utiliser de noms de dictateurs, criminels de guerre ou figures haineuses (Hitler, Staline, Mussolini, etc.)
+- Ne JAMAIS utiliser d'insultes ou de vulgarites (FDP, TG, ta gueule, nique, merde, putain, connard, salope, pd, ntm, etc.)
+- Ne JAMAIS faire reference a des ideologies extremistes, au nazisme, au terrorisme
+- Si le serveur, le personnage ou le contexte fourni contient du contenu problematique, IGNORE-le et genere des titres neutres et positifs
+- Les titres doivent etre adaptes a TOUT public`;
+
+                userPrompt = `Genere ${count} titres de stream Twitch RP varies et accrocheurs.
+
+Infos :
+Serveur (OBLIGATOIRE dans chaque titre) : ${server}
+${character ? `Personnage : ${character}` : ''}
+${episode ? `Episode : #${episode}` : ''}
+Ambiance : ${rpMood}
+${rpContext ? `Contexte : ${rpContext}` : ''}
+
+Exemples de vrais titres RP populaires (inspire-toi du format) :
+${episode ? `- "🎭 ${server} | L'aventure de ${character || 'Perso'} commence... | #${episode} 🔥"
+- "💀 ${server} | ${character || 'Perso'} va tout perdre... #${episode} 😱"
+- "🗡️ ${server} | La trahison... ⚡ | EP${episode}"
+- "👀 ${server} | Il ne sait pas encore ce qui l'attend... 💔 #${episode}"
+- "🔮 ${server} | ${character || 'Perso'} face a son destin 🌑 | #${episode}"` : `- "🎭 ${server} | L'aventure de ${character || 'Perso'} 🔥"
+- "💀 ${server} | ${character || 'Perso'} va tout perdre... 😱"
+- "🗡️ ${server} | La trahison... ⚡"
+- "👀 ${server} | Il ne sait pas encore ce qui l'attend... 💔"
+- "🔮 ${server} | ${character || 'Perso'} face a son destin 🌑"`}
+
+Le format classique est : NomDuServeur | Description/Teasing${episode ? ' | #NumeroEpisode' : ''}
+IMPORTANT : Ne rajoute JAMAIS "WL" dans le titre, le nom du serveur fourni contient deja cette info si necessaire.
+Genere ${count} titres UNIQUES et DIFFERENTS de ces exemples. Chaque titre doit donner envie de cliquer et contenir "${server}".
+IMPORTANT : Chaque titre doit contenir 2 a 4 emojis adaptes a l'ambiance "${rpMood}"${rpContext ? `, au contexte "${rpContext}"` : ''} et au contenu du titre. Les emojis doivent etre directement lies a ce que dit le titre (ex: si braquage = 💰🔫💥, si trahison = 🗡️💔, si arrestation = 🚔⚖️, si alliance = 🤝🔥, si mort = 💀⚰️, etc.). Ne mets PAS d'emojis generiques ou au hasard, chaque emoji doit avoir un sens par rapport au titre.`;
+            } else {
+                game = document.getElementById('game').value.trim();
+                const moodSelect = document.getElementById('mood').value;
+                const customMood = document.getElementById('customMood').value.trim();
+                const context = document.getElementById('context').value.trim();
+                count = document.getElementById('titleCount').value;
+
+                if (!game) {
+                    resultsDiv.innerHTML = '<div class="error-msg">Veuillez indiquer un jeu ou une categorie.</div>';
+                    return;
+                }
+
+                const mood = moodSelect === 'custom' ? customMood : moodSelect;
+
+                btn.disabled = true;
+                resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><div>Generation en cours...</div></div>';
+
+                systemPrompt = `Tu es un expert en creation de titres de stream Twitch. Tu connais parfaitement les jeux video, leurs modes de jeu reels et leurs mecaniques.
+
+Regles strictes de coherence :
+- ANALYSE le jeu indique et identifie ses VRAIS modes de jeu et mecaniques avant de generer les titres
+- Ne JAMAIS inventer ou attribuer un mode de jeu qui n'existe pas dans le jeu :
+  * Pas de "Battle Royale" pour Valorant, League of Legends, Overwatch, etc. (ce sont des jeux competitifs par equipe, pas des BR)
+  * Pas de "ranked" ou "classee" si le jeu n'a pas de mode classe (ex: jeux solo, jeux narratifs)
+  * Pas de "raid" ou "donjon" pour des jeux qui n'en ont pas
+  * Pas de "build" ou "craft" pour des jeux sans systeme de construction
+  * Pas de "open world" pour des jeux lineaires
+  * Pas de "PvP" pour des jeux uniquement PvE et inversement
+- Utilise le vocabulaire PROPRE au jeu (ex: "Agent" pour Valorant, "Champion" pour LoL, "Heros" pour Overwatch, "Perso" pour Genshin, etc.)
+- Adapte le style au type de jeu : FPS tactique, MOBA, MMO, solo narratif, sandbox, etc.
+- Pour "Just Chatting" ou categories non-gaming, ne mentionne aucune mecanique de jeu
+- Max 140 caracteres par titre
+- Titres accrocheurs, originaux et adaptes a la communaute Twitch francophone
+- Utilise 2-4 emojis par titre pour le rendre vivant et accrocheur sur Twitch
+- Choisis des emojis COHERENTS avec le jeu et l'ambiance :
+  * FPS/Shooter (🎯🔫💥⚡🏆), MOBA (🗡️⚔️👑🔥💀), Battle Royale (🏆👑💀🔫🗺️)
+  * Jeu chill/sandbox (🏠🌿✨🎨🌈), Horreur (👻💀😱🕯️🌑), Sport/Racing (🏎️⚽🏀🥇🔥)
+  * Just Chatting (💬😂🎉❤️☕), Ambiance hype (🔥⚡💪🚀🎉), Ambiance chill (☕😌🎶🌙✨)
+  * Ambiance competitive (🏆💪😤🎯⚡), Ambiance fun (😂💀🤣🎉🤪)
+  * Epique (⚔️🛡️🐉👑🔥), Troll (🤡😈💀🎭👀), Rage (😤💢🔥👊💀)
+  * Wholesome (🥰✨💖🌟😊), Chaotique (🌪️💥🤯🎲😈), Horrifique (👻💀😱🕯️🩸)
+  * Nostalgique (🕹️🎮👾📼✨), Cozy (🧸☕🌙🕯️🏠), Defi (💪🏆🔥⏱️😤)
+  * Decouverte (🗺️🔍✨🌍🆕)
+- Place les emojis de maniere strategique : en debut pour capter l'oeil, au milieu pour separer, en fin pour ponctuer
+- REGLE CRUCIALE : chaque emoji doit avoir un LIEN DIRECT avec le contenu du titre et le contexte fourni. Pas d'emojis decoratifs ou au hasard. Si le titre parle de competition, utilise des emojis de competition. Si le contexte mentionne un defi avec des viewers, utilise des emojis en rapport.
+- Reponds UNIQUEMENT avec les titres, un par ligne, sans numerotation ni tirets
+
+Regles de moderation ABSOLUES (JAMAIS d'exception) :
+- Ne JAMAIS generer de contenu haineux, raciste, sexiste, homophobe ou discriminatoire
+- Ne JAMAIS utiliser de noms de dictateurs, criminels de guerre ou figures haineuses (Hitler, Staline, Mussolini, etc.)
+- Ne JAMAIS utiliser d'insultes ou de vulgarites (FDP, TG, ta gueule, nique, merde, putain, connard, salope, pd, ntm, etc.)
+- Ne JAMAIS faire reference a des ideologies extremistes, au nazisme, au terrorisme
+- Si le jeu ou le contexte fourni contient du contenu problematique, IGNORE-le et genere des titres neutres et positifs
+- Les titres doivent etre adaptes a TOUT public`;
+
+                userPrompt = `Genere ${count} titres de stream Twitch pour :
+- Jeu/Categorie : ${game}
+- Ambiance : ${mood}
+${context ? `- Contexte : ${context}` : ''}
+
+Les titres doivent etre varies, creatifs et donner envie aux viewers de rejoindre le stream.
+IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec le jeu "${game}", l'ambiance "${mood}"${context ? ` et le contexte "${context}"` : ''}. Les emojis doivent etre directement lies au contenu du titre (ex: si le titre parle d'un defi = 💪🏆, si c'est avec des viewers = 👥🎉, si c'est un premier stream = 🌟🚀, si c'est un braquage = 💰🔫, etc.). Ne mets PAS d'emojis generiques ou au hasard, chaque emoji doit avoir un sens par rapport a ce que dit le titre.`;
+            }
+
+            const meta = { mode: currentMode, game, count };
+            if (currentMode === 'rp') {
+                meta.character = document.getElementById('rpCharacter').value.trim();
+                meta.mood = document.getElementById('rpMood').value;
+            } else {
+                meta.mood = document.getElementById('mood').value;
+            }
+
+            try {
+                const result = await callChatGPT(systemPrompt, userPrompt, meta);
+                const titles = result.split('\n').filter(t => t.trim().length > 0);
+                let html = '<h3>Titres generes</h3>';
+                titles.forEach(title => {
+                    const cleanTitle = title.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim();
+                    if (cleanTitle) {
+                        html += `<div class="result-item">
+                            <div class="text">${escapeHtml(cleanTitle)}</div>
+                            <button class="btn-copy" onclick="copyText(this, '${escapeJs(cleanTitle)}')">Copier</button>
+                        </div>`;
+                    }
+                });
+                resultsDiv.innerHTML = html;
+
+                titleHistory.unshift({
+                    date: new Date().toLocaleString('fr-FR'), game,
+                    titles: titles.map(t => t.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim()).filter(Boolean)
+                });
+                if (titleHistory.length > 20) titleHistory = titleHistory.slice(0, 20);
+                saveUserData();
+                renderHistory();
+            } catch (err) {
+                if (err.message === 'banned') {
+                    resultsDiv.innerHTML = '';
+                } else {
+                    resultsDiv.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
+                }
+            }
+            btn.disabled = false;
+        }
+
+        // --- History ---
+        function renderHistory() {
+            const container = document.getElementById('titlesHistory');
+            if (titleHistory.length === 0) { container.innerHTML = ''; return; }
+
+            let html = `<h3>Historique <button class="btn-clear" onclick="clearHistory()">Effacer</button></h3>`;
+            titleHistory.forEach(item => {
+                html += '<div class="history-item">';
+                html += `<div class="meta">${escapeHtml(item.date)}${item.game ? ' &middot; ' + escapeHtml(item.game) : ''}</div>`;
+                if (item.titles) {
+                    item.titles.forEach(t => { html += `<div style="margin: 3px 0; color: #a1a1aa;">${escapeHtml(t)}</div>`; });
+                }
+                html += '</div>';
+            });
+            container.innerHTML = html;
+        }
+
+        function clearHistory() {
+            titleHistory = [];
+            saveUserData();
+            renderHistory();
+        }
+
+        // --- Markdown light parser ---
+        function renderMarkdown(text) {
+            let html = escapeHtml(text);
+            // Code inline `code`
+            html = html.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
+            // Bold **text**
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            // Italic *text*
+            html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            // Underline __text__
+            html = html.replace(/__(.+?)__/g, '<u>$1</u>');
+            // Strikethrough ~~text~~
+            html = html.replace(/~~(.+?)~~/g, '<s>$1</s>');
+            // Headings ### text
+            html = html.replace(/^### (.+)$/gm, '<strong class="md-h3">$1</strong>');
+            html = html.replace(/^## (.+)$/gm, '<strong class="md-h2">$1</strong>');
+            // Unordered list - item
+            html = html.replace(/^- (.+)$/gm, '<span class="md-li">&bull; $1</span>');
+            // Line breaks
+            html = html.replace(/\n/g, '<br>');
+            return html;
+        }
+
+        // --- Utils ---
+        function copyText(btn, text) {
+            navigator.clipboard.writeText(text).then(() => {
+                const original = btn.dataset.originalText || btn.textContent;
+                btn.dataset.originalText = original;
+                btn.textContent = 'Copie !';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.textContent = original; btn.classList.remove('copied'); }, 1500);
+            });
+        }
+
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function escapeJs(str) {
+            return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
+        }
+
+        // --- SSE (Server-Sent Events) ---
+        function connectSSE() {
+            if (eventSource) eventSource.close();
+            eventSource = new EventSource('/api/events');
+
+            // Auto-reload si le serveur a redemarre (nouveau code deploye)
+            eventSource.addEventListener('version', (e) => {
+                const data = JSON.parse(e.data);
+                if (serverVersion && serverVersion !== data.version) {
+                    location.reload();
+                }
+                serverVersion = data.version;
+            });
+
+            eventSource.addEventListener('maintenance', (e) => {
+                const data = JSON.parse(e.data);
+                if (data.enabled) {
+                    // Maintenance activee
+                    if (currentUser && currentUser.isAdmin) {
+                        // Admin : juste mettre a jour le toggle
+                        document.getElementById('maintenanceToggle').checked = true;
+                        updateMaintenanceLabel(true);
+                    } else {
+                        // Non-admin ou non authentifie : afficher ecran maintenance
+                        showMaintenance();
+                    }
+                } else {
+                    // Maintenance desactivee
+                    if (currentUser && currentUser.isAdmin) {
+                        document.getElementById('maintenanceToggle').checked = false;
+                        updateMaintenanceLabel(false);
+                    } else {
+                        // Re-verifier l'auth pour restaurer l'etat correct
+                        checkAuth();
+                    }
+                }
+            });
+
+            eventSource.addEventListener('patchnote', (e) => {
+                const note = JSON.parse(e.data);
+                patchnotesList.unshift(note);
+                updatePatchnoteBadge();
+                if (currentUser && currentUser.isAdmin) {
+                    renderAdminPatchnotes();
+                } else if (currentUser) {
+                    openPatchnotes();
+                }
+            });
+
+            // Reconnexion automatique en cas de coupure
+            eventSource.onerror = () => {
+                eventSource.close();
+                eventSource = null;
+                setTimeout(() => connectSSE(), 3000);
+            };
+        }
+
+        // --- Patchnotes ---
+        async function loadPatchnotes() {
+            try {
+                const res = await fetch('/api/patchnotes');
+                if (res.ok) {
+                    patchnotesList = await res.json();
+                    updatePatchnoteBadge();
+                    if (currentUser && currentUser.isAdmin) renderAdminPatchnotes();
+                }
+            } catch (err) {
+                console.error('Erreur chargement patchnotes:', err);
+            }
+        }
+
+        function updatePatchnoteBadge() {
+            const badge = document.getElementById('patchnoteBadge');
+            const unread = patchnotesList.filter(p => p.published !== false && p.id > lastReadPatchnote).length;
+            if (unread > 0) {
+                badge.textContent = unread;
+                badge.classList.add('visible');
+            } else {
+                badge.textContent = '';
+                badge.classList.remove('visible');
+            }
+        }
+
+        function openPatchnotes() {
+            const body = document.getElementById('patchnotesModalBody');
+            const isAdmin = currentUser && currentUser.isAdmin;
+            const visibleNotes = isAdmin ? patchnotesList : patchnotesList.filter(p => p.published !== false);
+
+            if (visibleNotes.length === 0) {
+                body.innerHTML = '<p style="color: #52525b;">Aucune patchnote pour le moment.</p>';
+            } else {
+                let savedState = {};
+                try { savedState = JSON.parse(localStorage.getItem('patchnoteCollapsed') || '{}'); } catch {}
+
+                body.innerHTML = visibleNotes.map((p, i) => {
+                    const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+                    const tags = (p.tags || []).map(t => `<span class="tag-badge tag-${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
+                    const scheduled = p.published === false ? '<span class="scheduled-badge">Programmee</span>' : '';
+                    const isCollapsed = savedState.hasOwnProperty(p.id) ? savedState[p.id] : i > 0;
+                    const collapsed = isCollapsed ? ' collapsed' : '';
+
+                    return `<div class="patchnote-item${collapsed}" data-patchnote-id="${p.id}">
+                        <div class="patchnote-item-header" onclick="togglePatchnoteCollapse(this)">
+                            <div>
+                                <h3>${escapeHtml(p.title)} ${scheduled}</h3>
+                                ${tags ? '<div class="patchnote-tags-display">' + tags + '</div>' : ''}
+                            </div>
+                            <div class="patchnote-header-right">
+                                <span class="patchnote-date">${date}</span>
+                                <span class="patchnote-chevron">&#9660;</span>
+                            </div>
+                        </div>
+                        <div class="patchnote-content">${renderMarkdown(p.content)}</div>
+                    </div>`;
+                }).join('');
+            }
+            document.getElementById('patchnotesModal').classList.add('visible');
+            document.body.style.overflow = 'hidden';
+
+            // Marquer comme lu
+            const publishedNotes = patchnotesList.filter(p => p.published !== false);
+            if (publishedNotes.length > 0) {
+                lastReadPatchnote = publishedNotes[0].id;
+                updatePatchnoteBadge();
+                saveUserData();
+            }
+        }
+
+        function closePatchnotes() {
+            document.getElementById('patchnotesModal').classList.remove('visible');
+            document.body.style.overflow = '';
+        }
+
+        function togglePatchnoteCollapse(header) {
+            const item = header.parentElement;
+            item.classList.toggle('collapsed');
+            const id = item.dataset.patchnoteId;
+            let savedState = {};
+            try { savedState = JSON.parse(localStorage.getItem('patchnoteCollapsed') || '{}'); } catch {}
+            savedState[id] = item.classList.contains('collapsed');
+            localStorage.setItem('patchnoteCollapsed', JSON.stringify(savedState));
+        }
+
+        // --- Admin Patchnotes ---
+        function togglePatchnoteTag(btn) {
+            btn.classList.toggle('active');
+            const tag = btn.dataset.tag;
+            if (btn.classList.contains('active')) {
+                if (!selectedTags.includes(tag)) selectedTags.push(tag);
+            } else {
+                selectedTags = selectedTags.filter(t => t !== tag);
+            }
+            renderSelectedTags();
+        }
+
+        function addCustomTag() {
+            const input = document.getElementById('customTagInput');
+            const tag = input.value.trim();
+            if (!tag || selectedTags.includes(tag)) return;
+            selectedTags.push(tag);
+            input.value = '';
+            renderSelectedTags();
+        }
+
+        function removeTag(tag) {
+            selectedTags = selectedTags.filter(t => t !== tag);
+            document.querySelectorAll('.tag-toggle').forEach(btn => {
+                if (btn.dataset.tag === tag) btn.classList.remove('active');
+            });
+            renderSelectedTags();
+        }
+
+        function renderSelectedTags() {
+            const container = document.getElementById('selectedTagsList');
+            if (selectedTags.length === 0) { container.innerHTML = ''; return; }
+            container.innerHTML = selectedTags.map(t =>
+                `<span class="selected-tag tag-${getTagClass(t)}">${escapeHtml(t)} <button onclick="removeTag('${escapeJs(t)}')">&times;</button></span>`
+            ).join('');
+        }
+
+        function getTagClass(tag) {
+            const map = { 'Nouveau': 'nouveau', 'Fix': 'fix', 'Amelioration': 'amelioration', 'Important': 'important' };
+            return map[tag] || 'custom';
+        }
+
+        function toggleSchedule() {
+            const input = document.getElementById('scheduleDateTime');
+            input.style.display = document.getElementById('scheduleToggle').checked ? 'block' : 'none';
+        }
+
+        function resetPatchnoteForm() {
+            document.getElementById('patchnoteTitle').value = '';
+            document.getElementById('patchnoteContent').value = '';
+            selectedTags = [];
+            document.querySelectorAll('.tag-toggle').forEach(b => b.classList.remove('active'));
+            document.getElementById('selectedTagsList').innerHTML = '';
+            document.getElementById('scheduleToggle').checked = false;
+            document.getElementById('scheduleDateTime').style.display = 'none';
+            document.getElementById('scheduleDateTime').value = '';
+            document.getElementById('customTagInput').value = '';
+        }
+
+        async function publishPatchnote() {
+            const title = document.getElementById('patchnoteTitle').value.trim();
+            const content = document.getElementById('patchnoteContent').value.trim();
+            if (!title || !content) return;
+
+            const body = {
+                title,
+                content,
+                tags: selectedTags
+            };
+
+            if (document.getElementById('scheduleToggle').checked) {
+                const dt = document.getElementById('scheduleDateTime').value;
+                if (dt) body.scheduledAt = dt;
+            }
+
+            try {
+                const res = await fetch('/admin/patchnotes', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                if (res.ok) {
+                    resetPatchnoteForm();
+                    await loadPatchnotes();
+                }
+            } catch (err) {
+                console.error('Erreur publication patchnote:', err);
+            }
+        }
+
+        async function deletePatchnote(id) {
+            try {
+                const res = await fetch(`/admin/patchnotes/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    patchnotesList = patchnotesList.filter(p => p.id !== id);
+                    updatePatchnoteBadge();
+                    renderAdminPatchnotes();
+                }
+            } catch (err) {
+                console.error('Erreur suppression patchnote:', err);
+            }
+        }
+
+        function renderAdminPatchnotes() {
+            const container = document.getElementById('adminPatchnotesList');
+            if (!container) return;
+            if (patchnotesList.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            container.innerHTML = '<h4 class="admin-subtitle">Patchnotes</h4>' +
+                patchnotesList.map(p => {
+                    const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
+                    const tags = (p.tags || []).map(t => `<span class="tag-badge tag-${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
+                    const scheduled = p.published === false ? '<span class="scheduled-badge">Programmee</span>' : '';
+                    return `<div class="admin-patchnote-item">
+                        <div class="admin-patchnote-info">
+                            <div class="admin-patchnote-title-row">
+                                <strong>${escapeHtml(p.title)}</strong>
+                                ${scheduled}
+                            </div>
+                            <div class="admin-patchnote-meta">
+                                <span class="admin-patchnote-date">${date}</span>
+                                ${tags ? '<span class="admin-patchnote-tags">' + tags + '</span>' : ''}
+                            </div>
+                        </div>
+                        <button class="btn-delete-patchnote" onclick="deletePatchnote(${p.id})">&#10005;</button>
+                    </div>`;
+                }).join('');
+        }
+
+        // --- CGU Modal ---
+        function openCGU() {
+            document.getElementById('cguModal').classList.add('visible');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeCGU() {
+            document.getElementById('cguModal').classList.remove('visible');
+            document.body.style.overflow = '';
+        }
+
+        // --- Custom Select Dropdowns ---
+        function initCustomSelects() {
+            document.querySelectorAll('select').forEach(select => {
+                // Ne pas transformer les selects deja traites
+                if (select.dataset.customized) return;
+                select.dataset.customized = 'true';
+
+                const wrapper = document.createElement('div');
+                wrapper.className = 'custom-select';
+
+                select.parentNode.insertBefore(wrapper, select);
+                wrapper.appendChild(select);
+                select.style.display = 'none';
+
+                // Creer le trigger
+                const trigger = document.createElement('div');
+                trigger.className = 'custom-select-trigger';
+                const selectedOption = select.options[select.selectedIndex];
+                trigger.innerHTML = `<span>${selectedOption ? selectedOption.textContent : ''}</span>
+                    <svg class="arrow" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M7 10l5 5 5-5z"/>
+                    </svg>`;
+                wrapper.appendChild(trigger);
+
+                // Creer le panel d'options
+                const optionsPanel = document.createElement('div');
+                optionsPanel.className = 'custom-select-options';
+
+                Array.from(select.options).forEach(option => {
+                    const optionEl = document.createElement('div');
+                    optionEl.className = 'custom-select-option';
+                    if (option.selected) optionEl.classList.add('selected');
+                    optionEl.dataset.value = option.value;
+                    optionEl.textContent = option.textContent;
+
+                    optionEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        select.value = option.value;
+                        trigger.querySelector('span').textContent = option.textContent;
+                        optionsPanel.querySelectorAll('.custom-select-option').forEach(o => o.classList.remove('selected'));
+                        optionEl.classList.add('selected');
+                        wrapper.classList.remove('open');
+                        select.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+
+                    optionsPanel.appendChild(optionEl);
+                });
+
+                wrapper.appendChild(optionsPanel);
+
+                // Ouvrir/fermer au clic
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Fermer tous les autres
+                    document.querySelectorAll('.custom-select.open').forEach(s => {
+                        if (s !== wrapper) s.classList.remove('open');
+                    });
+                    wrapper.classList.toggle('open');
+                });
+
+                // Synchroniser si la valeur change depuis le code
+                const originalDescriptor = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value');
+                const syncDisplay = () => {
+                    const current = select.options[select.selectedIndex];
+                    if (current) {
+                        trigger.querySelector('span').textContent = current.textContent;
+                        optionsPanel.querySelectorAll('.custom-select-option').forEach(o => {
+                            o.classList.toggle('selected', o.dataset.value === current.value);
+                        });
+                    }
+                };
+
+                // Observer les changements programmatiques sur le select
+                const observer = new MutationObserver(syncDisplay);
+                observer.observe(select, { attributes: true, childList: true });
+
+                // Stocker la fonction de sync pour appel externe
+                select._syncCustomSelect = syncDisplay;
+            });
+
+            // Fermer au clic en dehors
+            document.addEventListener('click', () => {
+                document.querySelectorAll('.custom-select.open').forEach(s => s.classList.remove('open'));
+            });
+        }
+
+        // Fonction pour re-synchroniser tous les custom selects
+        function syncAllCustomSelects() {
+            document.querySelectorAll('select').forEach(select => {
+                if (select._syncCustomSelect) select._syncCustomSelect();
+            });
+        }
+
+        // --- Toast Notifications ---
+        function showToast(message, type = 'info', duration = 4000) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+
+            const icons = {
+                success: '&#10003;',
+                error: '&#10005;',
+                warning: '&#9888;',
+                info: '&#8505;'
+            };
+
+            toast.innerHTML = `
+                <span class="toast-icon">${icons[type] || icons.info}</span>
+                <span class="toast-message">${escapeHtml(message)}</span>
+                <button class="toast-close" onclick="this.parentElement.classList.add('toast-out'); setTimeout(() => this.parentElement.remove(), 300)">&times;</button>
+            `;
+
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('toast-in'));
+
+            setTimeout(() => {
+                if (toast.parentElement) {
+                    toast.classList.add('toast-out');
+                    setTimeout(() => toast.remove(), 300);
+                }
+            }, duration);
+        }
+
+        function showConfirm(message, onConfirm) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast toast-warning toast-confirm';
+
+            toast.innerHTML = `
+                <span class="toast-icon">&#9888;</span>
+                <div class="toast-confirm-content">
+                    <span class="toast-message">${escapeHtml(message)}</span>
+                    <div class="toast-confirm-actions">
+                        <button class="toast-btn toast-btn-yes">Confirmer</button>
+                        <button class="toast-btn toast-btn-no">Annuler</button>
+                    </div>
+                </div>
+            `;
+
+            container.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.add('toast-in'));
+
+            const close = () => {
+                toast.classList.add('toast-out');
+                setTimeout(() => toast.remove(), 300);
+            };
+
+            toast.querySelector('.toast-btn-yes').addEventListener('click', () => { close(); onConfirm(); });
+            toast.querySelector('.toast-btn-no').addEventListener('click', close);
+        }
+    </script>
+    <div class="toast-container" id="toastContainer"></div>
+</body>
+</html>

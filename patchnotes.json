@@ -1,0 +1,15 @@
+[
+  {
+    "id": 1769944941164,
+    "title": "📦 Patchnote | Mise à jour majeure",
+    "content": "### 💾 Système de sauvegarde de presets (NOUVEAU)\nAjout d’un **système de sauvegarde de presets personnalisés**.  \nLes utilisateurs peuvent enregistrer et réutiliser leurs presets à tout moment, ainsi que les modifier ou les supprimer selon leurs besoins.  \nObjectif : **gain de temps**, **cohérence** et **meilleure expérience utilisateur**.\n\n### 🔴 Mode Génération de Titres de Live (NOUVEAU)\nMise en place d’un **mode dédié à la génération de titres pour les lives**.  \nL’IA est optimisée pour produire des titres accrocheurs et dynamiques, spécialement pensés pour les plateformes de streaming comme Twitch, YouTube Live ou Kick.  \nLes titres sont conçus pour maximiser la visibilité et l’engagement en live.  \nLes modes de génération sont désormais clairement séparés pour une utilisation plus intuitive.\n\n## 🛡️ Sécurité & Modération\n\n### 🚨 Système de modération intégré (NOUVEAU)\nAjout d’un **système de modération avancé** comprenant le ban utilisateur (temporaire ou définitif) ainsi que le clear de l’historique utilisateur.  \nCes outils sont réservés à l’administration afin de garantir un environnement sain.\n\n### 🚫 Blocage des titres haineux ou problématiques\nMise en place d’un **filtrage automatique** empêchant la génération de titres à caractère haineux, faisant référence à des dictateurs, idéologies extrémistes ou tout contenu problématique.  \nObjectif : **sécurité**, **responsabilité** et **respect de la communauté**.\n\n## ☁️ Données & Comptes\n\n### 🔐 Sauvegarde de l’historique par ID Discord (NOUVEAU)\nLa sauvegarde locale de l’historique a été supprimée.  \nL’historique est désormais lié à l’**ID Discord** de l’utilisateur, accessible depuis n’importe quel appareil, avec une meilleure sécurité et une meilleure persistance des données.  \nCette base prépare l’arrivée de futures fonctionnalités multi-plateformes.\n\n## ⚙️ Améliorations & Optimisations\nAmélioration de la stabilité générale du site.  \nOptimisation des temps de réponse de l’IA.  \nMeilleure gestion des erreurs.  \nInterface plus claire et plus lisible.\n\n## 🧩 À venir\nPartage de presets entre utilisateurs.  \nSystème de rôles Discord (premium, modérateur, administrateur).  \nStatistiques personnelles de génération de titres de live.\n\n**Merci d’utiliser IA Title – Z-Time 💜**  \nEncore plus d’améliorations arrivent très bientôt 🚀",
+    "date": "2026-02-01T11:22:21.164Z",
+    "tags": [
+      "Nouveau",
+      "Amelioration",
+      "Important"
+    ],
+    "scheduledAt": null,
+    "published": true
+  }
+]
