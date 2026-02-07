@@ -20,7 +20,7 @@
                 </svg>
             </div>
             <h1>Stream Generator</h1>
-            <p>Titres & Notifications Twitch propulses par ChatGPT</p>
+            <p>Titres & Notifications Twitch propulses par IA</p>
         </header>
 
         <!-- Login Screen -->
@@ -98,6 +98,9 @@
 
                 <!-- Liste des bans actifs -->
                 <div id="adminBansList" class="admin-bans-list"></div>
+
+                <!-- Liste des warns actifs -->
+                <div id="adminWarnsList" class="admin-warns-list"></div>
 
                 <div class="admin-divider"></div>
                 <h4 class="admin-subtitle">Publier une Patchnote</h4>
@@ -491,6 +494,15 @@
                 : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0') % 5}.png`;
             document.getElementById('userAvatar').src = avatarUrl;
 
+            // Show warn banner if user has warnings
+            if (user.warns && user.warns.length > 0 && !user.isAdmin) {
+                const lastWarn = user.warns[user.warns.length - 1];
+                const warnKey = 'warnDismissed_' + lastWarn.id;
+                if (!localStorage.getItem(warnKey)) {
+                    showWarnBanner(lastWarn, user.warns.length);
+                }
+            }
+
             // Show admin panel if admin
             if (user.isAdmin) {
                 document.getElementById('adminPanel').classList.add('visible');
@@ -498,6 +510,7 @@
                 updateMaintenanceLabel(user.maintenance);
                 restoreAdminPanelState();
                 loadAdminBans();
+                loadAdminWarns();
             }
 
             // Charger les donnees de l'utilisateur depuis le serveur
@@ -544,6 +557,38 @@
                 }
             }
             detailsDiv.innerHTML = html;
+        }
+
+        function showWarnBanner(lastWarn, totalWarns) {
+            // Remove existing banner if any
+            const existing = document.getElementById('warnBanner');
+            if (existing) existing.remove();
+
+            const banner = document.createElement('div');
+            banner.id = 'warnBanner';
+            banner.className = 'warn-banner';
+            const warnDate = new Date(lastWarn.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+            banner.innerHTML = `
+                <div class="warn-banner-content">
+                    <span class="warn-banner-icon">&#9888;</span>
+                    <div class="warn-banner-text">
+                        <strong>Avertissement (${totalWarns}/3)</strong>
+                        <span>${escapeHtml(lastWarn.reason)} &mdash; ${warnDate}</span>
+                    </div>
+                    <button class="warn-banner-close" onclick="dismissWarnBanner(${lastWarn.id})">&times;</button>
+                </div>
+            `;
+            const appContent = document.getElementById('appContent');
+            appContent.insertBefore(banner, appContent.querySelector('.user-bar').nextSibling);
+        }
+
+        function dismissWarnBanner(warnId) {
+            localStorage.setItem('warnDismissed_' + warnId, 'true');
+            const banner = document.getElementById('warnBanner');
+            if (banner) {
+                banner.classList.add('warn-banner-out');
+                setTimeout(() => banner.remove(), 300);
+            }
         }
 
         async function logout() {
@@ -647,6 +692,7 @@
                     <div class="um-userid">${escapeHtml(data.userId)}</div>
                 </div>
                 ${data.banned ? '<span class="um-badge um-badge-banned">BANNI</span>' : '<span class="um-badge um-badge-ok">ACTIF</span>'}
+                ${(data.warns || []).length > 0 ? '<span class="um-badge um-badge-warned">' + data.warns.length + ' WARN' + (data.warns.length > 1 ? 'S' : '') + '</span>' : ''}
             </div>`;
 
             // --- Infos ---
@@ -671,6 +717,25 @@
                 </div>`;
             }
 
+            // --- Warns ---
+            const warns = data.warns || [];
+            if (warns.length > 0) {
+                html += `<div class="um-warn-info">
+                    <div class="um-warn-header">Avertissements (${warns.length})</div>`;
+                warns.forEach(w => {
+                    const wDate = new Date(w.date).toLocaleString('fr-FR');
+                    html += `<div class="um-warn-item">
+                        <div class="um-warn-item-content">
+                            <span class="um-warn-reason">${escapeHtml(w.reason)}</span>
+                            <span class="um-warn-date">${wDate}</span>
+                        </div>
+                        <button class="um-warn-remove" onclick="modalRemoveWarn(${w.id})" title="Retirer cet avertissement">&times;</button>
+                    </div>`;
+                });
+                html += `<button class="btn-admin-action btn-clear-warns" onclick="modalClearWarns()">Supprimer tous les warns</button>`;
+                html += `</div>`;
+            }
+
             // --- Actions ---
             html += '<div class="um-actions">';
             if (data.banned) {
@@ -693,6 +758,11 @@
                     </div>
                 </div>`;
             }
+            // Warn form
+            html += `<div class="um-warn-form">
+                <input type="text" id="modalWarnReason" placeholder="Raison de l'avertissement" class="patchnote-input">
+                <button class="btn-admin-warn" onclick="modalWarn()">Warn</button>
+            </div>`;
             html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
             html += '</div>';
 
@@ -761,6 +831,47 @@
             });
         }
 
+        async function modalWarn() {
+            if (!currentModalUserId) return;
+            const reason = document.getElementById('modalWarnReason').value.trim();
+            if (!reason) return showToast('Une raison est requise pour le warn.', 'warning');
+
+            try {
+                const res = await fetch('/admin/warn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId, reason }) });
+                let data; try { data = await res.json(); } catch { data = {}; }
+                if (res.ok) {
+                    showToast(`Avertissement envoye (${data.total} au total).`, 'success');
+                    openUserModal();
+                } else { showToast(data.error || 'Erreur', 'error'); }
+            } catch { showToast('Erreur de connexion', 'error'); }
+        }
+
+        async function modalRemoveWarn(warnId) {
+            if (!currentModalUserId) return;
+            try {
+                const res = await fetch('/admin/unwarn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId, warnId }) });
+                let data; try { data = await res.json(); } catch { data = {}; }
+                if (res.ok) {
+                    showToast('Avertissement retire.', 'success');
+                    openUserModal();
+                } else { showToast(data.error || 'Erreur', 'error'); }
+            } catch { showToast('Erreur de connexion', 'error'); }
+        }
+
+        async function modalClearWarns() {
+            if (!currentModalUserId) return;
+            showConfirm('Supprimer tous les avertissements de cet utilisateur ?', async () => {
+                try {
+                    const res = await fetch('/admin/clear-warns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId }) });
+                    let data; try { data = await res.json(); } catch { data = {}; }
+                    if (res.ok) {
+                        showToast('Tous les avertissements supprimes.', 'success');
+                        openUserModal();
+                    } else { showToast(data.error || 'Erreur', 'error'); }
+                } catch { showToast('Erreur de connexion', 'error'); }
+            });
+        }
+
         async function loadAdminBans() {
             try {
                 const res = await fetch('/admin/bans');
@@ -768,6 +879,34 @@
                 const bans = await res.json();
                 renderAdminBans(bans);
             } catch (err) {}
+        }
+
+        async function loadAdminWarns() {
+            try {
+                const res = await fetch('/admin/warns');
+                if (!res.ok) return;
+                const warns = await res.json();
+                renderAdminWarns(warns);
+            } catch (err) {}
+        }
+
+        function renderAdminWarns(warns) {
+            const container = document.getElementById('adminWarnsList');
+            const entries = Object.entries(warns);
+            if (entries.length === 0) { container.innerHTML = ''; return; }
+
+            let html = '<h4 class="admin-subtitle" style="margin-top:12px;">Warns actifs</h4>';
+            entries.forEach(([userId, userWarns]) => {
+                if (userWarns.length === 0) return;
+                const lastWarn = userWarns[userWarns.length - 1];
+                html += `<div class="admin-warn-item" style="cursor:pointer" onclick="document.getElementById('adminUserId').value='${escapeJs(userId)}'; openUserModal();">
+                    <div class="admin-warn-info">
+                        <strong>${escapeHtml(userId)}</strong>
+                        <span class="admin-warn-meta">${userWarns.length} warn${userWarns.length > 1 ? 's' : ''} &middot; Dernier: ${escapeHtml(lastWarn.reason)}</span>
+                    </div>
+                </div>`;
+            });
+            container.innerHTML = html;
         }
 
         function renderAdminBans(bans) {

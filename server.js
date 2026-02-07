@@ -83,6 +83,33 @@ function isUserBanned(userId) {
     return false;
 }
 
+// --- Warns ---
+const WARNS_FILE = path.join(__dirname, 'warns.json');
+
+function loadWarns() {
+    try {
+        if (fs.existsSync(WARNS_FILE)) {
+            return JSON.parse(fs.readFileSync(WARNS_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.error('Erreur lecture warns.json:', err.message);
+    }
+    return {};
+}
+
+function saveWarns(warns) {
+    try {
+        fs.writeFileSync(WARNS_FILE, JSON.stringify(warns, null, 2), 'utf8');
+    } catch (err) {
+        console.error('Erreur ecriture warns.json:', err.message);
+    }
+}
+
+function getUserWarns(userId) {
+    const warns = loadWarns();
+    return warns[userId] || [];
+}
+
 // --- Patchnotes ---
 const PATCHNOTES_FILE = path.join(__dirname, 'patchnotes.json');
 
@@ -331,12 +358,14 @@ app.get('/auth/me', (req, res) => {
     if (req.session && req.session.user) {
         const banned = isUserBanned(req.session.user.id);
         const banInfo = banned ? loadBans()[req.session.user.id] : null;
+        const userWarns = getUserWarns(req.session.user.id);
         return res.json({
             ...req.session.user,
             isAdmin: req.session.user.id === ADMIN_DISCORD_ID,
             maintenance: maintenanceMode,
             banned,
-            banInfo
+            banInfo,
+            warns: userWarns
         });
     }
     res.status(401).json({ error: 'Non authentifie' });
@@ -539,6 +568,8 @@ app.get('/admin/user/:id', requireAdmin, (req, res) => {
         console.error('Erreur lecture userdata admin:', err.message);
     }
 
+    const userWarns = getUserWarns(userId);
+
     res.json({
         userId,
         exists: !!userData,
@@ -547,7 +578,8 @@ app.get('/admin/user/:id', requireAdmin, (req, res) => {
         presetsCount: (userData?.presets || []).length,
         titleHistory: userData?.titleHistory || [],
         banned: isBanned,
-        banInfo: isBanned ? ban : null
+        banInfo: isBanned ? ban : null,
+        warns: userWarns
     });
 });
 
@@ -623,6 +655,73 @@ app.post('/admin/clear-history', requireAdmin, (req, res) => {
         console.error('Erreur clear history:', err.message);
         return res.status(500).json({ error: 'Erreur serveur' });
     }
+});
+
+// --- Admin Warn Routes ---
+app.get('/admin/warns', requireAdmin, (req, res) => {
+    const warns = loadWarns();
+    res.json(warns);
+});
+
+app.post('/admin/warn', requireAdmin, (req, res) => {
+    const { userId, reason } = req.body;
+    if (!userId || !userId.trim()) {
+        return res.status(400).json({ error: 'ID utilisateur requis' });
+    }
+    if (!reason || !reason.trim()) {
+        return res.status(400).json({ error: 'Raison requise pour un avertissement' });
+    }
+
+    const cleanId = userId.trim();
+    if (cleanId === ADMIN_DISCORD_ID) {
+        return res.status(400).json({ error: 'Impossible de warn un administrateur' });
+    }
+
+    const warns = loadWarns();
+    if (!warns[cleanId]) warns[cleanId] = [];
+
+    const warn = {
+        id: Date.now(),
+        reason: reason.trim(),
+        date: new Date().toISOString()
+    };
+
+    warns[cleanId].push(warn);
+    saveWarns(warns);
+    console.log(`Warn: ${cleanId} - Raison: ${warn.reason} (Total: ${warns[cleanId].length})`);
+    res.json({ ok: true, warn, total: warns[cleanId].length });
+});
+
+app.post('/admin/unwarn', requireAdmin, (req, res) => {
+    const { userId, warnId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'ID utilisateur requis' });
+
+    const warns = loadWarns();
+    if (!warns[userId] || warns[userId].length === 0) {
+        return res.status(404).json({ error: 'Aucun avertissement pour cet utilisateur' });
+    }
+
+    if (warnId) {
+        warns[userId] = warns[userId].filter(w => w.id !== warnId);
+    } else {
+        warns[userId].pop();
+    }
+
+    if (warns[userId].length === 0) delete warns[userId];
+    saveWarns(warns);
+    console.log(`Unwarn: ${userId}${warnId ? ' (warn #' + warnId + ')' : ''}`);
+    res.json({ ok: true });
+});
+
+app.post('/admin/clear-warns', requireAdmin, (req, res) => {
+    const { userId } = req.body;
+    if (!userId) return res.status(400).json({ error: 'ID utilisateur requis' });
+
+    const warns = loadWarns();
+    delete warns[userId];
+    saveWarns(warns);
+    console.log(`Clear warns: ${userId}`);
+    res.json({ ok: true });
 });
 
 // --- Patchnotes Routes ---
