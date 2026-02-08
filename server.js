@@ -443,7 +443,8 @@ app.get('/auth/discord/callback', async (req, res) => {
             username: user.username,
             discriminator: user.discriminator || '0',
             avatar: user.avatar,
-            roles: member.roles || []
+            roles: member.roles || [],
+            accessToken
         };
 
         // Save user profile to userdata for admin lookups
@@ -473,14 +474,31 @@ app.get('/auth/discord/callback', async (req, res) => {
 });
 
 // Get current user
-app.get('/auth/me', (req, res) => {
+app.get('/auth/me', async (req, res) => {
     if (req.session && req.session.user) {
+        // Si les roles ne sont pas dans la session, les recuperer depuis Discord
+        if (!req.session.user.roles && req.session.user.accessToken) {
+            try {
+                const memberRes = await fetch(
+                    `https://discord.com/api/users/@me/guilds/${REQUIRED_GUILD_ID}/member`,
+                    { headers: { Authorization: `Bearer ${req.session.user.accessToken}` } }
+                );
+                if (memberRes.ok) {
+                    const member = await memberRes.json();
+                    req.session.user.roles = member.roles || [];
+                }
+            } catch (err) {
+                console.error('Erreur recuperation roles:', err.message);
+            }
+        }
+
         const banned = isUserBanned(req.session.user.id);
         const banInfo = banned ? loadBans()[req.session.user.id] : null;
         const userWarns = getUserWarns(req.session.user.id);
         const isModerator = MODERATOR_ROLE_ID && req.session.user.roles && req.session.user.roles.includes(MODERATOR_ROLE_ID);
+        const { accessToken, ...safeUser } = req.session.user;
         return res.json({
-            ...req.session.user,
+            ...safeUser,
             isAdmin: req.session.user.id === ADMIN_DISCORD_ID,
             isModerator: !!isModerator,
             isStaff: req.session.user.id === ADMIN_DISCORD_ID || !!isModerator,
@@ -811,7 +829,11 @@ app.post('/admin/warn', requireStaff, (req, res) => {
     const warn = {
         id: Date.now(),
         reason: reason.trim(),
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        by: {
+            id: req.session.user.id,
+            username: req.session.user.username
+        }
     };
 
     warns[cleanId].push(warn);

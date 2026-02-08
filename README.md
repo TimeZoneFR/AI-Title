@@ -46,7 +46,7 @@
 **Panel Admin** &mdash; Gestion complete depuis l'interface :
 - Mode maintenance (temps reel via SSE)
 - Systeme de bans (temporaires / permanents)
-- Systeme de warns (manuels + automatiques)
+- Systeme de warns (manuels + automatiques, avec tracabilite de l'auteur)
 - Recherche utilisateur par ID Discord
 - Suppression d'historique
 

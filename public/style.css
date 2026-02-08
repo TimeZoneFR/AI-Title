@@ -2495,6 +2495,21 @@ header p {
     line-height: 1.4;
 }
 
+.um-warn-by {
+    display: block;
+    font-size: 0.75rem;
+    color: #71717a;
+    margin-top: 3px;
+}
+
+.um-warn-by code {
+    font-size: 0.7rem;
+    color: #a1a1aa;
+    background: rgba(255, 255, 255, 0.05);
+    padding: 1px 4px;
+    border-radius: 3px;
+}
+
 .um-warn-date {
     font-size: 0.7rem;
     color: #52525b;

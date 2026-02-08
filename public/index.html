@@ -746,6 +746,7 @@
                 warns.forEach((w, i) => {
                     const wDate = new Date(w.date).toLocaleString('fr-FR');
                     const autoBadge = w.auto ? '<span class="um-warn-badge-auto">AUTO</span>' : '<span class="um-warn-badge-manual">MANUEL</span>';
+                    const byInfo = w.by ? `<span class="um-warn-by">par ${escapeHtml(w.by.username)} (<code>${escapeHtml(w.by.id)}</code>)</span>` : '';
                     html += `<div class="um-warn-item">
                         <div class="um-warn-item-number">${i + 1}</div>
                         <div class="um-warn-item-content">
@@ -754,6 +755,7 @@
                                 <span class="um-warn-date">${wDate}</span>
                             </div>
                             <span class="um-warn-reason">${escapeHtml(w.reason)}</span>
+                            ${byInfo}
                         </div>
                         ${isAdmin ? `<button class="um-warn-remove" onclick="modalRemoveWarn(${w.id})" title="Retirer cet avertissement">&times;</button>` : ''}
                     </div>`;
