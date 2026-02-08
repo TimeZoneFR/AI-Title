@@ -36,16 +36,29 @@
 
 **Authentification Discord** &mdash; Connexion via OAuth2 avec verification du serveur et du role.
 
+**Moderation automatique** &mdash; Chaque requete de generation est analysee par ChatGPT avant execution :
+- Detection de contenu inapproprie (insultes, figures haineuses, ideologies extremistes, etc.)
+- Avertissement automatique de l'utilisateur en cas d'infraction
+- Auto-ban permanent au 3e avertissement
+- Notification Discord en temps reel (webhook rouge + ping role)
+- Staff (admins + moderateurs) exempts de la moderation
+
 **Panel Admin** &mdash; Gestion complete depuis l'interface :
 - Mode maintenance (temps reel via SSE)
 - Systeme de bans (temporaires / permanents)
-- Systeme de warns
+- Systeme de warns (manuels + automatiques)
 - Recherche utilisateur par ID Discord
 - Suppression d'historique
 
+**Panel Moderateur** &mdash; Interface dediee aux moderateurs (role Discord configurable) :
+- Recherche utilisateur par ID Discord
+- Bans temporaires (pas de ban permanent)
+- Systeme de warns manuels
+- Pas d'acces au deban, suppression de warns, maintenance, patchnotes
+
 **Patchnotes** &mdash; Systeme de notes de mise a jour avec publication programmee et notifications temps reel.
 
-**Logs Discord** &mdash; Chaque generation est loguee via webhook dans un salon Discord.
+**Logs Discord** &mdash; Chaque generation est loguee via webhook dans un salon Discord. Les avertissements automatiques sont envoyes dans un embed rouge avec mention du role de moderation.
 
 <br>
 
@@ -54,7 +67,7 @@
 | Couche | Technologie |
 |--------|------------|
 | Backend | **Node.js** + **Express** |
-| IA | **OpenAI API** (GPT-4o-mini) |
+| IA | **OpenAI API** (GPT-4o-mini) &mdash; generation + moderation |
 | Auth | **Discord OAuth2** |
 | Sessions | express-session + session-file-store |
 | Temps reel | Server-Sent Events (SSE) |
@@ -97,6 +110,7 @@ REQUIRED_GUILD_ID=id_du_serveur
 REQUIRED_ROLE_ID=id_du_role
 SESSION_SECRET=une_chaine_secrete_aleatoire
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
+MODERATOR_ROLE_ID=id_du_role_moderateur
 PORT=3000
 ```
 

@@ -77,9 +77,9 @@
 
             <!-- Admin Panel -->
             <div class="admin-panel" id="adminPanel">
-                <h3 onclick="toggleAdminPanel()" class="admin-panel-toggle"><span class="admin-badge">&#9881;</span> Panel Admin <span class="admin-chevron" id="adminChevron">&#9660;</span></h3>
+                <h3 onclick="toggleAdminPanel()" class="admin-panel-toggle" id="adminPanelTitle"><span class="admin-badge">&#9881;</span> Panel Admin <span class="admin-chevron" id="adminChevron">&#9660;</span></h3>
                 <div class="admin-panel-content" id="adminPanelContent">
-                <div class="admin-controls">
+                <div class="admin-controls admin-only">
                     <span class="control-label">Mode maintenance</span>
                     <label class="toggle-switch">
                         <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenance()">
@@ -87,7 +87,7 @@
                     </label>
                     <span class="maintenance-status off" id="maintenanceLabel">Desactive</span>
                 </div>
-                <div class="admin-divider"></div>
+                <div class="admin-divider admin-only"></div>
                 <h4 class="admin-subtitle">Gestion des utilisateurs</h4>
                 <div class="admin-user-management">
                     <div class="admin-user-row">
@@ -102,7 +102,8 @@
                 <!-- Liste des warns actifs -->
                 <div id="adminWarnsList" class="admin-warns-list"></div>
 
-                <div class="admin-divider"></div>
+                <div class="admin-divider admin-only"></div>
+                <div class="admin-only">
                 <h4 class="admin-subtitle">Publier une Patchnote</h4>
                 <div class="patchnote-form">
                     <input type="text" id="patchnoteTitle" placeholder="Titre de la patchnote" class="patchnote-input">
@@ -136,6 +137,7 @@
                     <button class="btn-publish" onclick="publishPatchnote()">Publier</button>
                 </div>
                 <div id="adminPatchnotesList" class="admin-patchnotes-list"></div>
+                </div>
                 </div>
             </div>
 
@@ -459,8 +461,8 @@
                         return;
                     }
 
-                    // If maintenance is on and user is not admin, show maintenance
-                    if (user.maintenance && !user.isAdmin) {
+                    // If maintenance is on and user is not staff, show maintenance
+                    if (user.maintenance && !user.isStaff) {
                         showMaintenance();
                         return;
                     }
@@ -495,7 +497,7 @@
             document.getElementById('userAvatar').src = avatarUrl;
 
             // Show warn banner if user has warnings
-            if (user.warns && user.warns.length > 0 && !user.isAdmin) {
+            if (user.warns && user.warns.length > 0 && !user.isStaff) {
                 const lastWarn = user.warns[user.warns.length - 1];
                 const warnKey = 'warnDismissed_' + lastWarn.id;
                 if (!localStorage.getItem(warnKey)) {
@@ -503,14 +505,29 @@
                 }
             }
 
-            // Show admin panel if admin
-            if (user.isAdmin) {
+            // Show admin/mod panel if staff
+            if (user.isAdmin || user.isModerator) {
                 document.getElementById('adminPanel').classList.add('visible');
-                document.getElementById('maintenanceToggle').checked = user.maintenance;
-                updateMaintenanceLabel(user.maintenance);
                 restoreAdminPanelState();
                 loadAdminBans();
                 loadAdminWarns();
+
+                if (user.isAdmin) {
+                    document.getElementById('maintenanceToggle').checked = user.maintenance;
+                    updateMaintenanceLabel(user.maintenance);
+                    // Show admin-only sections
+                    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+                } else {
+                    // Hide admin-only sections for moderators
+                    document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+                }
+
+                // Update panel title and style for moderators
+                if (user.isModerator && !user.isAdmin) {
+                    document.getElementById('adminPanelTitle').innerHTML = '<span class="mod-badge">&#9733;</span> Panel Moderateur <span class="admin-chevron" id="adminChevron">&#9660;</span>';
+                    document.getElementById('adminPanel').classList.add('mod-panel');
+                    restoreAdminPanelState();
+                }
             }
 
             // Charger les donnees de l'utilisateur depuis le serveur
@@ -545,6 +562,9 @@
 
             const detailsDiv = document.getElementById('banDetails');
             let html = '';
+            if (currentUser && currentUser.id) {
+                html += `<p><strong>ID :</strong> ${escapeHtml(currentUser.id)}</p>`;
+            }
             if (banInfo) {
                 if (banInfo.reason) {
                     html += `<p><strong>Raison :</strong> ${escapeHtml(banInfo.reason)}</p>`;
@@ -674,6 +694,7 @@
 
         function renderUserModal(data) {
             const body = document.getElementById('userModalBody');
+            const isAdmin = currentUser && currentUser.isAdmin;
             const profile = data.profile;
             const avatarUrl = profile && profile.avatar
                 ? `https://cdn.discordapp.com/avatars/${data.userId}/${profile.avatar}.png?size=64`
@@ -722,24 +743,35 @@
             if (warns.length > 0) {
                 html += `<div class="um-warn-info">
                     <div class="um-warn-header">Avertissements (${warns.length})</div>`;
-                warns.forEach(w => {
+                warns.forEach((w, i) => {
                     const wDate = new Date(w.date).toLocaleString('fr-FR');
+                    const autoBadge = w.auto ? '<span class="um-warn-badge-auto">AUTO</span>' : '<span class="um-warn-badge-manual">MANUEL</span>';
                     html += `<div class="um-warn-item">
+                        <div class="um-warn-item-number">${i + 1}</div>
                         <div class="um-warn-item-content">
+                            <div class="um-warn-item-top">
+                                ${autoBadge}
+                                <span class="um-warn-date">${wDate}</span>
+                            </div>
                             <span class="um-warn-reason">${escapeHtml(w.reason)}</span>
-                            <span class="um-warn-date">${wDate}</span>
                         </div>
-                        <button class="um-warn-remove" onclick="modalRemoveWarn(${w.id})" title="Retirer cet avertissement">&times;</button>
+                        ${isAdmin ? `<button class="um-warn-remove" onclick="modalRemoveWarn(${w.id})" title="Retirer cet avertissement">&times;</button>` : ''}
                     </div>`;
                 });
-                html += `<button class="btn-admin-action btn-clear-warns" onclick="modalClearWarns()">Supprimer tous les warns</button>`;
+                if (isAdmin) {
+                    html += `<button class="btn-admin-action btn-clear-warns" onclick="modalClearWarns()">Supprimer tous les warns</button>`;
+                }
                 html += `</div>`;
             }
 
             // --- Actions ---
             html += '<div class="um-actions">';
             if (data.banned) {
-                html += `<button class="btn-admin-action btn-unban" onclick="modalUnban()">Debannir</button>`;
+                if (isAdmin) {
+                    html += `<button class="btn-admin-action btn-unban" onclick="modalUnban()">Debannir</button>`;
+                } else {
+                    html += `<div class="um-mod-info">Cet utilisateur est banni. Seul un admin peut debannir.</div>`;
+                }
             } else {
                 html += `<div class="um-ban-form">
                     <input type="text" id="modalBanReason" placeholder="Raison du ban (optionnel)" class="patchnote-input">
@@ -752,7 +784,7 @@
                             <option value="4320">3 jours</option>
                             <option value="10080">7 jours</option>
                             <option value="43200">30 jours</option>
-                            <option value="permanent">Permanent</option>
+                            ${isAdmin ? '<option value="permanent">Permanent</option>' : ''}
                         </select>
                         <button class="btn-admin-ban" onclick="modalBan()">Bannir</button>
                     </div>
@@ -763,7 +795,9 @@
                 <input type="text" id="modalWarnReason" placeholder="Raison de l'avertissement" class="patchnote-input">
                 <button class="btn-admin-warn" onclick="modalWarn()">Warn</button>
             </div>`;
-            html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
+            if (isAdmin) {
+                html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
+            }
             html += '</div>';
 
             // --- Historique ---
@@ -1486,19 +1520,23 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                 const data = JSON.parse(e.data);
                 if (data.enabled) {
                     // Maintenance activee
-                    if (currentUser && currentUser.isAdmin) {
-                        // Admin : juste mettre a jour le toggle
-                        document.getElementById('maintenanceToggle').checked = true;
-                        updateMaintenanceLabel(true);
+                    if (currentUser && currentUser.isStaff) {
+                        // Staff : juste mettre a jour le toggle si admin
+                        if (currentUser.isAdmin) {
+                            document.getElementById('maintenanceToggle').checked = true;
+                            updateMaintenanceLabel(true);
+                        }
                     } else {
-                        // Non-admin ou non authentifie : afficher ecran maintenance
+                        // Non-staff ou non authentifie : afficher ecran maintenance
                         showMaintenance();
                     }
                 } else {
                     // Maintenance desactivee
-                    if (currentUser && currentUser.isAdmin) {
-                        document.getElementById('maintenanceToggle').checked = false;
-                        updateMaintenanceLabel(false);
+                    if (currentUser && currentUser.isStaff) {
+                        if (currentUser.isAdmin) {
+                            document.getElementById('maintenanceToggle').checked = false;
+                            updateMaintenanceLabel(false);
+                        }
                     } else {
                         // Re-verifier l'auth pour restaurer l'etat correct
                         checkAuth();

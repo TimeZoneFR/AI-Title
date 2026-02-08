@@ -17,7 +17,8 @@ const {
     REQUIRED_GUILD_ID,
     REQUIRED_ROLE_ID,
     SESSION_SECRET,
-    DISCORD_WEBHOOK_URL
+    DISCORD_WEBHOOK_URL,
+    MODERATOR_ROLE_ID
 } = process.env;
 
 const ADMIN_DISCORD_ID = '1148249755458228286';
@@ -315,6 +316,20 @@ function requireAdmin(req, res, next) {
     return res.status(403).json({ error: 'Acces refuse' });
 }
 
+function isStaff(user) {
+    if (!user) return false;
+    if (user.id === ADMIN_DISCORD_ID) return true;
+    if (MODERATOR_ROLE_ID && user.roles && user.roles.includes(MODERATOR_ROLE_ID)) return true;
+    return false;
+}
+
+function requireStaff(req, res, next) {
+    if (req.session && req.session.user && isStaff(req.session.user)) {
+        return next();
+    }
+    return res.status(403).json({ error: 'Acces refuse' });
+}
+
 function checkBan(req, res, next) {
     if (req.session && req.session.user) {
         if (isUserBanned(req.session.user.id)) {
@@ -333,8 +348,8 @@ function checkBan(req, res, next) {
 
 function checkMaintenance(req, res, next) {
     if (!maintenanceMode) return next();
-    // Admin can always access
-    if (req.session && req.session.user && req.session.user.id === ADMIN_DISCORD_ID) {
+    // Staff (admin + moderateurs) can always access
+    if (req.session && req.session.user && isStaff(req.session.user)) {
         return next();
     }
     return res.status(503).json({ error: 'maintenance' });
@@ -427,7 +442,8 @@ app.get('/auth/discord/callback', async (req, res) => {
             id: user.id,
             username: user.username,
             discriminator: user.discriminator || '0',
-            avatar: user.avatar
+            avatar: user.avatar,
+            roles: member.roles || []
         };
 
         // Save user profile to userdata for admin lookups
@@ -462,9 +478,12 @@ app.get('/auth/me', (req, res) => {
         const banned = isUserBanned(req.session.user.id);
         const banInfo = banned ? loadBans()[req.session.user.id] : null;
         const userWarns = getUserWarns(req.session.user.id);
+        const isModerator = MODERATOR_ROLE_ID && req.session.user.roles && req.session.user.roles.includes(MODERATOR_ROLE_ID);
         return res.json({
             ...req.session.user,
             isAdmin: req.session.user.id === ADMIN_DISCORD_ID,
+            isModerator: !!isModerator,
+            isStaff: req.session.user.id === ADMIN_DISCORD_ID || !!isModerator,
             maintenance: maintenanceMode,
             banned,
             banInfo,
@@ -655,7 +674,7 @@ app.post('/admin/maintenance', requireAdmin, (req, res) => {
 });
 
 // --- Admin User Lookup ---
-app.get('/admin/user/:id', requireAdmin, (req, res) => {
+app.get('/admin/user/:id', requireStaff, (req, res) => {
     const userId = req.params.id.trim();
     const filePath = getUserDataPath(userId);
     const bans = loadBans();
@@ -687,12 +706,12 @@ app.get('/admin/user/:id', requireAdmin, (req, res) => {
 });
 
 // --- Admin Ban Routes ---
-app.get('/admin/bans', requireAdmin, (req, res) => {
+app.get('/admin/bans', requireStaff, (req, res) => {
     const bans = loadBans();
     res.json(bans);
 });
 
-app.post('/admin/ban', requireAdmin, (req, res) => {
+app.post('/admin/ban', requireStaff, (req, res) => {
     const { userId, reason, duration, permanent } = req.body;
     if (!userId || !userId.trim()) {
         return res.status(400).json({ error: 'ID utilisateur requis' });
@@ -701,6 +720,12 @@ app.post('/admin/ban', requireAdmin, (req, res) => {
     const cleanId = userId.trim();
     if (cleanId === ADMIN_DISCORD_ID) {
         return res.status(400).json({ error: 'Impossible de bannir un administrateur' });
+    }
+
+    // Moderateurs ne peuvent pas ban permanent
+    const isAdmin = req.session.user.id === ADMIN_DISCORD_ID;
+    if (!isAdmin && permanent) {
+        return res.status(403).json({ error: 'Seuls les administrateurs peuvent bannir de facon permanente' });
     }
 
     const bans = loadBans();
@@ -761,12 +786,12 @@ app.post('/admin/clear-history', requireAdmin, (req, res) => {
 });
 
 // --- Admin Warn Routes ---
-app.get('/admin/warns', requireAdmin, (req, res) => {
+app.get('/admin/warns', requireStaff, (req, res) => {
     const warns = loadWarns();
     res.json(warns);
 });
 
-app.post('/admin/warn', requireAdmin, (req, res) => {
+app.post('/admin/warn', requireStaff, (req, res) => {
     const { userId, reason } = req.body;
     if (!userId || !userId.trim()) {
         return res.status(400).json({ error: 'ID utilisateur requis' });
@@ -922,20 +947,39 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         return res.status(400).json({ error: 'Parametres manquants' });
     }
 
-    // Moderation automatique via ChatGPT
-    const moderation = await checkContentModeration(userPrompt, meta);
-    if (moderation.flagged) {
-        const userId = req.session.user.id;
-        const result = addAutoWarn(userId, moderation.reason);
-        if (result) {
-            sendWarnWebhook(req.session.user, moderation.reason, result.total, meta);
+    // Moderation automatique via ChatGPT (staff exempt)
+    const isUserStaff = isStaff(req.session.user);
+    if (!isUserStaff) {
+        const moderation = await checkContentModeration(userPrompt, meta);
+        if (moderation.flagged) {
+            const userId = req.session.user.id;
+            const result = addAutoWarn(userId, moderation.reason);
+            if (result) {
+                sendWarnWebhook(req.session.user, moderation.reason, result.total, meta);
+                // Auto-ban a 3 warns
+                if (result.total >= 3) {
+                    const bans = loadBans();
+                    bans[userId] = {
+                        reason: `Auto-ban : ${result.total} avertissements atteints`,
+                        date: new Date().toISOString(),
+                        permanent: true
+                    };
+                    saveBans(bans);
+                    console.log(`Auto-ban: ${userId} - ${result.total} warns atteints`);
+                    return res.status(403).json({
+                        error: 'banned',
+                        reason: `Auto-ban : ${result.total} avertissements atteints`,
+                        permanent: true
+                    });
+                }
+            }
+            return res.status(403).json({
+                error: 'warned',
+                reason: moderation.reason,
+                warn: result?.warn || null,
+                totalWarns: result?.total || 0
+            });
         }
-        return res.status(403).json({
-            error: 'warned',
-            reason: moderation.reason,
-            warn: result?.warn || null,
-            totalWarns: result?.total || 0
-        });
     }
 
     try {
