@@ -1224,17 +1224,7 @@
             const resultsDiv = document.getElementById('titlesResults');
             let systemPrompt, userPrompt, count, game;
 
-            // Check all text fields for banned content
-            const fieldsToCheck = currentMode === 'rp'
-                ? ['rpServer', 'rpCharacter', 'rpContext', 'rpCustomMood']
-                : ['game', 'context', 'customMood'];
-            for (const id of fieldsToCheck) {
-                const el = document.getElementById(id);
-                if (el && containsBannedWords(el.value)) {
-                    resultsDiv.innerHTML = '<div class="error-msg">Contenu inapproprie detecte. Merci de modifier votre saisie.</div>';
-                    return;
-                }
-            }
+            // La moderation est geree cote serveur (ChatGPT + auto-warn)
 
             if (currentMode === 'rp') {
                 const server = document.getElementById('rpServer').value.trim();
