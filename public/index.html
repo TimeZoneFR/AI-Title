@@ -974,14 +974,23 @@
             }
 
             if (response.status === 403) {
-                const banData = await response.json().catch(() => ({}));
-                if (banData.error === 'banned') {
+                const data403 = await response.json().catch(() => ({}));
+                if (data403.error === 'banned') {
                     showBanned({
-                        reason: banData.reason,
-                        permanent: banData.permanent,
-                        until: banData.until
+                        reason: data403.reason,
+                        permanent: data403.permanent,
+                        until: data403.until
                     });
                     throw new Error('banned');
+                }
+                if (data403.error === 'warned') {
+                    showWarnBanner({
+                        id: data403.warn?.id || Date.now(),
+                        reason: data403.reason,
+                        date: data403.warn?.date || new Date().toISOString()
+                    }, data403.totalWarns);
+                    showToast(`⚠️ Avertissement (${data403.totalWarns}/3) : ${data403.reason}`, 'warning', 8000);
+                    throw new Error('warned');
                 }
             }
 
@@ -1393,6 +1402,8 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             } catch (err) {
                 if (err.message === 'banned') {
                     resultsDiv.innerHTML = '';
+                } else if (err.message === 'warned') {
+                    resultsDiv.innerHTML = '<div class="error-msg">Contenu inapproprie detecte. Un avertissement a ete ajoute a ton compte.</div>';
                 } else {
                     resultsDiv.innerHTML = `<div class="error-msg">${escapeHtml(err.message)}</div>`;
                 }

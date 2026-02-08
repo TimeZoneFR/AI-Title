@@ -110,6 +110,109 @@ function getUserWarns(userId) {
     return warns[userId] || [];
 }
 
+function addAutoWarn(userId, reason) {
+    if (userId === ADMIN_DISCORD_ID) return null;
+    const warns = loadWarns();
+    if (!warns[userId]) warns[userId] = [];
+    const warn = {
+        id: Date.now(),
+        reason,
+        date: new Date().toISOString(),
+        auto: true
+    };
+    warns[userId].push(warn);
+    saveWarns(warns);
+    console.log(`Auto-warn: ${userId} - Raison: ${reason} (Total: ${warns[userId].length})`);
+    return { warn, total: warns[userId].length };
+}
+
+// --- Content Moderation via ChatGPT ---
+async function checkContentModeration(userPrompt, meta) {
+    try {
+        const textToCheck = [
+            meta?.game || '',
+            meta?.character || '',
+            meta?.mood || '',
+            userPrompt
+        ].join(' ');
+
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${OPENAI_API_KEY}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini',
+                messages: [
+                    {
+                        role: 'system',
+                        content: `Tu es un moderateur de contenu. Analyse le texte fourni et determine s'il contient du contenu inapproprie.
+
+Contenu INTERDIT :
+- Noms de dictateurs, criminels de guerre, figures haineuses (Hitler, Staline, Mussolini, Pol Pot, etc.)
+- Insultes, vulgarites, gros mots (fdp, ntm, nique, merde, putain, connard, salope, pd, etc.)
+- Contenu raciste, sexiste, homophobe, discriminatoire
+- References au nazisme, fascisme, terrorisme, ideologies extremistes
+- Contenu sexuel ou pornographique
+- Incitation a la violence ou a la haine
+- Harcelement, menaces
+- Tout contenu inapproprie pour un service tout public
+
+Reponds UNIQUEMENT par un JSON strict :
+{"flagged": true/false, "reason": "raison courte si flagged, sinon vide"}
+
+Sois strict : au moindre doute, flag le contenu.`
+                    },
+                    {
+                        role: 'user',
+                        content: `Analyse ce texte : "${textToCheck}"`
+                    }
+                ],
+                temperature: 0,
+                max_tokens: 100
+            })
+        });
+
+        if (!response.ok) return { flagged: false, reason: '' };
+
+        const data = await response.json();
+        const content = data.choices[0].message.content.trim();
+        const result = JSON.parse(content);
+        return { flagged: !!result.flagged, reason: result.reason || 'Contenu inapproprie' };
+    } catch (err) {
+        console.error('Erreur moderation:', err.message);
+        return { flagged: false, reason: '' };
+    }
+}
+
+// --- Webhook warn auto (rouge + ping role) ---
+function sendWarnWebhook(user, reason, totalWarns, meta) {
+    if (!DISCORD_WEBHOOK_URL) return;
+
+    const embed = {
+        title: '⚠️ Avertissement automatique',
+        color: 0xff0000,
+        fields: [
+            { name: 'Utilisateur', value: `${user.username} (\`${user.id}\`)`, inline: true },
+            { name: 'Warns', value: `${totalWarns}/3`, inline: true },
+            { name: 'Raison', value: reason },
+            { name: 'Mode', value: meta?.mode === 'rp' ? 'RP' : 'Normal', inline: true },
+            { name: meta?.mode === 'rp' ? 'Serveur' : 'Jeu', value: meta?.game || 'Non specifie', inline: true }
+        ],
+        timestamp: new Date().toISOString()
+    };
+
+    fetch(DISCORD_WEBHOOK_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            content: '<@&1467477738234446017>',
+            embeds: [embed]
+        })
+    }).catch(err => console.error('Webhook warn error:', err.message));
+}
+
 // --- Patchnotes ---
 const PATCHNOTES_FILE = path.join(__dirname, 'patchnotes.json');
 
@@ -817,6 +920,22 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
 
     if (!systemPrompt || !userPrompt) {
         return res.status(400).json({ error: 'Parametres manquants' });
+    }
+
+    // Moderation automatique via ChatGPT
+    const moderation = await checkContentModeration(userPrompt, meta);
+    if (moderation.flagged) {
+        const userId = req.session.user.id;
+        const result = addAutoWarn(userId, moderation.reason);
+        if (result) {
+            sendWarnWebhook(req.session.user, moderation.reason, result.total, meta);
+        }
+        return res.status(403).json({
+            error: 'warned',
+            reason: moderation.reason,
+            warn: result?.warn || null,
+            totalWarns: result?.total || 0
+        });
     }
 
     try {

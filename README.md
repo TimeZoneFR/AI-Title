@@ -191,5 +191,5 @@ Projet prive &mdash; Z-Time Studio.
 ---
 
 <div align="center">
-<sub>Fait avec le coeur par <strong>Z-Time Studio</strong></sub>
+<sub>Fait avec le 🫀 par <strong>Z-Time Studio</strong></sub>
 </div>
