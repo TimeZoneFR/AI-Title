@@ -34,7 +34,7 @@
 
 **Systeme de Presets** &mdash; Sauvegarde tes configurations favorites et partage-les avec un code a 6 caracteres.
 
-**Authentification Discord** &mdash; Connexion via OAuth2 avec verification du serveur et du role.
+**Authentification Discord** &mdash; Connexion via OAuth2 ouverte a tout utilisateur Discord (email, avatar, banniere recuperes).
 
 **Moderation automatique** &mdash; Chaque requete de generation est analysee par ChatGPT avant execution :
 - Detection de contenu inapproprie (insultes, figures haineuses, ideologies extremistes, etc.)
@@ -47,8 +47,10 @@
 - Mode maintenance (temps reel via SSE)
 - Systeme de bans (temporaires / permanents)
 - Systeme de warns (manuels + automatiques, avec tracabilite de l'auteur)
-- Recherche utilisateur par ID Discord
+- Recherche utilisateur par ID Discord (profil, email, banniere, token)
 - Suppression d'historique
+- Forcer un utilisateur ou tous les utilisateurs a rejoindre un serveur Discord
+- Deconnexion de toutes les sessions utilisateurs
 
 **Panel Moderateur** &mdash; Interface dediee aux moderateurs (role Discord configurable) :
 - Recherche utilisateur par ID Discord
@@ -81,7 +83,8 @@
 ### Prerequisites
 
 - [Node.js](https://nodejs.org/) v18+
-- Un serveur Discord avec un bot/application configuree
+- Une application Discord (OAuth2) avec les scopes : `identify`, `email`, `guilds.join`, `guilds.members.read`
+- Un bot Discord (pour la fonctionnalite "forcer rejoindre un serveur")
 - Une cle API OpenAI
 
 ### 1. Clone le repo
@@ -106,11 +109,11 @@ OPENAI_API_KEY=sk-...
 DISCORD_CLIENT_ID=ton_client_id
 DISCORD_CLIENT_SECRET=ton_client_secret
 DISCORD_REDIRECT_URI=http://localhost:3000/auth/discord/callback
-REQUIRED_GUILD_ID=id_du_serveur
-REQUIRED_ROLE_ID=id_du_role
+REQUIRED_GUILD_ID=id_du_serveur (optionnel, pour detection roles moderateurs)
+MODERATOR_ROLE_ID=id_du_role_moderateur
+DISCORD_BOT_TOKEN=token_du_bot_discord (pour forcer rejoindre un serveur)
 SESSION_SECRET=une_chaine_secrete_aleatoire
 DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/...
-MODERATOR_ROLE_ID=id_du_role_moderateur
 PORT=3000
 ```
 
@@ -191,6 +194,10 @@ Le serveur demarre sur `http://localhost:3000`
 | `POST` | `/admin/warn` | Avertir un utilisateur |
 | `POST` | `/admin/unwarn` | Retirer un warn |
 | `POST` | `/admin/clear-warns` | Supprimer tous les warns |
+| `POST` | `/admin/logout-all` | Deconnecter toutes les sessions |
+| `GET` | `/admin/users` | Liste de tous les utilisateurs |
+| `POST` | `/admin/guild-join` | Forcer un utilisateur a rejoindre un serveur |
+| `POST` | `/admin/guild-join-all` | Forcer tous les utilisateurs a rejoindre un serveur |
 | `POST` | `/admin/patchnotes` | Creer une patchnote |
 | `DELETE` | `/admin/patchnotes/:id` | Supprimer une patchnote |
 

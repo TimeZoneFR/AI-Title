@@ -32,7 +32,7 @@
                     </svg>
                 </div>
                 <h2>Connexion requise</h2>
-                <p>Connecte-toi avec Discord pour acceder au generateur. Tu dois etre membre du serveur et avoir le role requis.</p>
+                <p>Connecte-toi avec Discord pour acceder au generateur.</p>
                 <a class="btn-discord" href="/auth/discord">
                     Se connecter avec Discord
                 </a>
@@ -101,6 +101,30 @@
 
                 <!-- Liste des warns actifs -->
                 <div id="adminWarnsList" class="admin-warns-list"></div>
+
+                <div class="admin-divider admin-only"></div>
+                <div class="admin-only">
+                <h4 class="admin-subtitle">Gestion des serveurs Discord</h4>
+                <div class="admin-guild-section">
+                    <div class="admin-user-row">
+                        <input type="text" id="adminGuildId" placeholder="ID du serveur Discord" class="patchnote-input" style="flex:1;">
+                        <button class="btn-admin-search" onclick="guildJoinAll()">Tous rejoindre</button>
+                    </div>
+                    <div id="guildJoinResult" style="margin-top:8px;"></div>
+                </div>
+                </div>
+
+                <div class="admin-divider admin-only"></div>
+                <div class="admin-only">
+                <h4 class="admin-subtitle">Sessions</h4>
+                <div class="admin-guild-section">
+                    <div class="admin-user-row">
+                        <span style="flex:1;color:#b0b0b0;font-size:0.95em;">Deconnecter tous les utilisateurs (sauf vous)</span>
+                        <button class="btn-logout-all" onclick="logoutAll()">Tout deconnecter</button>
+                    </div>
+                    <div id="logoutAllResult" style="margin-top:8px;"></div>
+                </div>
+                </div>
 
                 <div class="admin-divider admin-only"></div>
                 <div class="admin-only">
@@ -331,13 +355,13 @@
                 <button class="modal-close" onclick="closeCGU()">&times;</button>
             </div>
             <div class="modal-body">
-                <p class="cgu-date">Derniere mise a jour : 30 janvier 2026</p>
+                <p class="cgu-date">Derniere mise a jour : 9 fevrier 2026</p>
 
                 <h3>Article 1 - Objet</h3>
                 <p>Les presentes Conditions Generales d'Utilisation (CGU) regissent l'acces et l'utilisation du service Stream Generator (ci-apres "le Service"), edite par Z-Time Studio. Le Service permet de generer des titres de stream et des notifications pour la plateforme Twitch a l'aide de l'intelligence artificielle.</p>
 
                 <h3>Article 2 - Acces au Service</h3>
-                <p>L'acces au Service est reserve aux utilisateurs disposant d'un compte Discord, membres d'un serveur Discord specifique et titulaires du role requis. L'authentification s'effectue via le protocole OAuth2 de Discord. Z-Time Studio se reserve le droit de modifier les conditions d'acces a tout moment.</p>
+                <p>L'acces au Service est ouvert a tout utilisateur disposant d'un compte Discord. L'authentification s'effectue via le protocole OAuth2 de Discord. Z-Time Studio se reserve le droit de modifier les conditions d'acces a tout moment, de bannir un utilisateur ou de restreindre l'acces au Service sans preavis.</p>
 
                 <h3>Article 3 - Description du Service</h3>
                 <p>Le Service propose :</p>
@@ -366,10 +390,11 @@
                 <ul>
                     <li>Identifiant Discord</li>
                     <li>Nom d'utilisateur Discord</li>
+                    <li>Adresse email Discord</li>
                     <li>Avatar Discord</li>
-                    <li>Appartenance au serveur et roles</li>
+                    <li>Banniere Discord</li>
                 </ul>
-                <p>Ces donnees sont utilisees exclusivement pour l'authentification et ne sont pas partagees avec des tiers. Les donnees de session sont stockees temporairement sur le serveur. Aucun contenu genere n'est conserve cote serveur.</p>
+                <p>Ces donnees sont utilisees pour l'authentification, l'affichage du profil et les fonctionnalites d'administration. Un token d'acces Discord est egalement stocke de maniere securisee pour permettre certaines actions administratives (comme l'ajout a un serveur Discord). Ces donnees ne sont pas partagees avec des tiers. Les donnees de session sont stockees temporairement sur le serveur.</p>
 
                 <h3>Article 7 - Disponibilite du Service</h3>
                 <p>Z-Time Studio s'efforce de maintenir le Service accessible en permanence mais ne garantit aucune disponibilite. Le Service peut etre interrompu pour maintenance, mise a jour ou pour toute autre raison, sans preavis ni indemnisation.</p>
@@ -434,9 +459,6 @@
             if (error) {
                 const errorDiv = document.getElementById('loginError');
                 const messages = {
-                    'not_in_guild': 'Tu dois etre membre du serveur Discord requis.',
-                    'missing_role': 'Tu n\'as pas le role "Acces au site" sur le serveur Discord.',
-                    'guild_fetch_failed': 'Impossible de verifier ton serveur Discord. Reessaie.',
                     'auth_failed': 'Erreur lors de la connexion avec Discord. Reessaie.',
                     'banned': 'Ton acces a ete bloque. Contacte un administrateur pour plus d\'informations.'
                 };
@@ -699,11 +721,22 @@
             const avatarUrl = profile && profile.avatar
                 ? `https://cdn.discordapp.com/avatars/${data.userId}/${profile.avatar}.png?size=64`
                 : `https://cdn.discordapp.com/embed/avatars/0.png`;
+            const bannerUrl = profile && profile.banner
+                ? `https://cdn.discordapp.com/banners/${data.userId}/${profile.banner}.png?size=480`
+                : null;
             const username = profile ? profile.username : 'Inconnu';
+            const email = profile ? profile.email : null;
             const firstSeen = data.firstSeen ? new Date(data.firstSeen).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Inconnue';
             const lastLogin = profile && profile.lastLogin ? new Date(profile.lastLogin).toLocaleString('fr-FR') : 'Inconnue';
 
             let html = '';
+
+            // --- Banner ---
+            if (bannerUrl) {
+                html += `<div class="um-banner" style="background-image:url('${bannerUrl}');height:120px;border-radius:8px 8px 0 0;background-size:cover;background-position:center;margin:-16px -16px 12px -16px;"></div>`;
+            } else if (profile && profile.banner_color) {
+                html += `<div class="um-banner" style="background:${profile.banner_color};height:60px;border-radius:8px 8px 0 0;margin:-16px -16px 12px -16px;"></div>`;
+            }
 
             // --- Header profil ---
             html += `<div class="um-profile">
@@ -711,6 +744,7 @@
                 <div class="um-profile-info">
                     <div class="um-username">${escapeHtml(username)}</div>
                     <div class="um-userid">${escapeHtml(data.userId)}</div>
+                    ${email ? '<div class="um-email" style="color:#71717a;font-size:0.82rem;">' + escapeHtml(email) + '</div>' : ''}
                 </div>
                 ${data.banned ? '<span class="um-badge um-badge-banned">BANNI</span>' : '<span class="um-badge um-badge-ok">ACTIF</span>'}
                 ${(data.warns || []).length > 0 ? '<span class="um-badge um-badge-warned">' + data.warns.length + ' WARN' + (data.warns.length > 1 ? 'S' : '') + '</span>' : ''}
@@ -720,8 +754,10 @@
             html += `<div class="um-info-grid">
                 <div class="um-info-item"><span class="um-info-label">Premiere connexion</span><span class="um-info-value">${firstSeen}</span></div>
                 <div class="um-info-item"><span class="um-info-label">Derniere connexion</span><span class="um-info-value">${lastLogin}</span></div>
+                <div class="um-info-item"><span class="um-info-label">Email</span><span class="um-info-value">${email ? escapeHtml(email) : 'Non disponible'}</span></div>
                 <div class="um-info-item"><span class="um-info-label">Presets</span><span class="um-info-value">${data.presetsCount}</span></div>
                 <div class="um-info-item"><span class="um-info-label">Titres generes</span><span class="um-info-value">${data.titleHistory.length} sessions</span></div>
+                <div class="um-info-item"><span class="um-info-label">Token valide</span><span class="um-info-value">${data.hasToken ? 'Oui' : 'Non'}</span></div>
             </div>`;
 
             // --- Ban info si banni ---
@@ -799,6 +835,14 @@
             </div>`;
             if (isAdmin) {
                 html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
+                // Guild join form
+                html += `<div class="um-guild-join" style="margin-top:12px;">
+                    <div class="admin-user-row">
+                        <input type="text" id="modalGuildId" placeholder="ID du serveur Discord" class="patchnote-input" style="flex:1;">
+                        <button class="btn-admin-search" onclick="modalGuildJoin()">Faire rejoindre</button>
+                    </div>
+                    <div id="modalGuildJoinResult" style="margin-top:6px;"></div>
+                </div>`;
             }
             html += '</div>';
 
@@ -905,6 +949,80 @@
                         openUserModal();
                     } else { showToast(data.error || 'Erreur', 'error'); }
                 } catch { showToast('Erreur de connexion', 'error'); }
+            });
+        }
+
+        // --- Guild Join ---
+        async function modalGuildJoin() {
+            if (!currentModalUserId) return;
+            const guildId = document.getElementById('modalGuildId').value.trim();
+            if (!guildId) return showToast('Entre un ID de serveur Discord.', 'warning');
+            const resultDiv = document.getElementById('modalGuildJoinResult');
+            resultDiv.innerHTML = '<span style="color:#a1a1aa;">Envoi en cours...</span>';
+
+            try {
+                const res = await fetch('/admin/guild-join', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: currentModalUserId, guildId })
+                });
+                let data;
+                try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status}). Redemarrer le serveur.` }; }
+                if (res.ok) {
+                    resultDiv.innerHTML = `<span style="color:#22c55e;">${escapeHtml(data.message || 'OK')}</span>`;
+                } else {
+                    resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur ' + res.status)}</span>`;
+                }
+            } catch (err) {
+                resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur de connexion: ${escapeHtml(err.message)}</span>`;
+            }
+        }
+
+        async function guildJoinAll() {
+            const guildId = document.getElementById('adminGuildId').value.trim();
+            if (!guildId) return showToast('Entre un ID de serveur Discord.', 'warning');
+
+            const resultDiv = document.getElementById('guildJoinResult');
+            showConfirm('Faire rejoindre TOUS les utilisateurs a ce serveur ?', async () => {
+                resultDiv.innerHTML = '<span style="color:#a1a1aa;">Traitement en cours... Cela peut prendre un moment.</span>';
+                try {
+                    const res = await fetch('/admin/guild-join-all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ guildId })
+                    });
+                    let data;
+                    try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status}). Redemarrer le serveur.` }; }
+                    if (res.ok) {
+                        resultDiv.innerHTML = `<span style="color:#22c55e;">Termine : ${data.added} ajoute(s), ${data.alreadyMember} deja membre(s), ${data.failed} echec(s), ${data.noToken} sans token</span>`;
+                    } else {
+                        resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur ' + res.status)}</span>`;
+                    }
+                } catch (err) {
+                    resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`;
+                }
+            });
+        }
+
+        async function logoutAll() {
+            const resultDiv = document.getElementById('logoutAllResult');
+            showConfirm('Deconnecter TOUS les utilisateurs (sauf vous) ?', async () => {
+                resultDiv.innerHTML = '<span style="color:#a1a1aa;">Deconnexion en cours...</span>';
+                try {
+                    const res = await fetch('/admin/logout-all', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    let data;
+                    try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status})` }; }
+                    if (res.ok) {
+                        resultDiv.innerHTML = `<span style="color:#22c55e;">${data.count} session(s) supprimee(s)</span>`;
+                    } else {
+                        resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur')}</span>`;
+                    }
+                } catch (err) {
+                    resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`;
+                }
             });
         }
 

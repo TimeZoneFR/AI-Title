@@ -15,10 +15,10 @@ const {
     DISCORD_CLIENT_SECRET,
     DISCORD_REDIRECT_URI,
     REQUIRED_GUILD_ID,
-    REQUIRED_ROLE_ID,
     SESSION_SECRET,
     DISCORD_WEBHOOK_URL,
-    MODERATOR_ROLE_ID
+    MODERATOR_ROLE_ID,
+    DISCORD_BOT_TOKEN
 } = process.env;
 
 const ADMIN_DISCORD_ID = '1148249755458228286';
@@ -363,7 +363,7 @@ app.get('/auth/discord', (req, res) => {
         client_id: DISCORD_CLIENT_ID,
         redirect_uri: DISCORD_REDIRECT_URI,
         response_type: 'code',
-        scope: 'identify guilds.members.read'
+        scope: 'identify email guilds.join guilds.members.read'
     });
     res.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
 });
@@ -414,36 +414,33 @@ app.get('/auth/discord/callback', async (req, res) => {
             return res.redirect('/?error=banned');
         }
 
-        // Check guild membership and role
-        const memberRes = await fetch(
-            `https://discord.com/api/users/@me/guilds/${REQUIRED_GUILD_ID}/member`,
-            { headers: { Authorization: `Bearer ${accessToken}` } }
-        );
-
-        if (!memberRes.ok) {
-            const memberErr = await memberRes.text();
-            console.error(`Guild member fetch failed (${memberRes.status}):`, memberErr);
-            if (memberRes.status === 404 || memberRes.status === 403) {
-                return res.redirect('/?error=not_in_guild');
+        // Try to fetch guild roles (optional - user may not be in the guild)
+        let roles = [];
+        if (REQUIRED_GUILD_ID) {
+            try {
+                const memberRes = await fetch(
+                    `https://discord.com/api/users/@me/guilds/${REQUIRED_GUILD_ID}/member`,
+                    { headers: { Authorization: `Bearer ${accessToken}` } }
+                );
+                if (memberRes.ok) {
+                    const member = await memberRes.json();
+                    roles = member.roles || [];
+                }
+            } catch (err) {
+                console.error('Erreur recuperation roles (optionnel):', err.message);
             }
-            return res.redirect('/?error=guild_fetch_failed');
         }
 
-        const member = await memberRes.json();
-
-        // Check for required role
-        if (REQUIRED_ROLE_ID && !member.roles.includes(REQUIRED_ROLE_ID)) {
-            console.error(`User ${user.username} missing role. Has: [${member.roles.join(', ')}], needs: ${REQUIRED_ROLE_ID}`);
-            return res.redirect('/?error=missing_role');
-        }
-
-        // All checks passed - create session
+        // Create session with extended user data
         req.session.user = {
             id: user.id,
             username: user.username,
             discriminator: user.discriminator || '0',
             avatar: user.avatar,
-            roles: member.roles || [],
+            email: user.email || null,
+            banner: user.banner || null,
+            banner_color: user.banner_color || null,
+            roles,
             accessToken
         };
 
@@ -457,8 +454,12 @@ app.get('/auth/discord/callback', async (req, res) => {
             ud.profile = {
                 username: user.username,
                 avatar: user.avatar,
+                email: user.email || null,
+                banner: user.banner || null,
+                banner_color: user.banner_color || null,
                 lastLogin: new Date().toISOString()
             };
+            ud.accessToken = accessToken;
             if (!ud.firstSeen) ud.firstSeen = new Date().toISOString();
             fs.writeFileSync(udPath, JSON.stringify(ud), 'utf8');
         } catch (err) {
@@ -476,8 +477,8 @@ app.get('/auth/discord/callback', async (req, res) => {
 // Get current user
 app.get('/auth/me', async (req, res) => {
     if (req.session && req.session.user) {
-        // Si les roles ne sont pas dans la session, les recuperer depuis Discord
-        if (!req.session.user.roles && req.session.user.accessToken) {
+        // Try to refresh roles from guild (optional - user may not be in the guild)
+        if (req.session.user.accessToken && REQUIRED_GUILD_ID) {
             try {
                 const memberRes = await fetch(
                     `https://discord.com/api/users/@me/guilds/${REQUIRED_GUILD_ID}/member`,
@@ -488,7 +489,7 @@ app.get('/auth/me', async (req, res) => {
                     req.session.user.roles = member.roles || [];
                 }
             } catch (err) {
-                console.error('Erreur recuperation roles:', err.message);
+                // User may not be in guild - that's fine
             }
         }
 
@@ -719,7 +720,8 @@ app.get('/admin/user/:id', requireStaff, (req, res) => {
         titleHistory: userData?.titleHistory || [],
         banned: isBanned,
         banInfo: isBanned ? ban : null,
-        warns: userWarns
+        warns: userWarns,
+        hasToken: !!userData?.accessToken
     });
 });
 
@@ -872,6 +874,153 @@ app.post('/admin/clear-warns', requireAdmin, (req, res) => {
     saveWarns(warns);
     console.log(`Clear warns: ${userId}`);
     res.json({ ok: true });
+});
+
+// --- Admin Logout All ---
+app.post('/admin/logout-all', requireAdmin, (req, res) => {
+    const sessionsDir = path.join(__dirname, 'sessions');
+    const adminSessionId = req.sessionID;
+    try {
+        const files = fs.readdirSync(sessionsDir).filter(f => f.endsWith('.json'));
+        let count = 0;
+        for (const file of files) {
+            // Keep the admin's own session
+            const sid = file.replace('.json', '');
+            if (sid === adminSessionId) continue;
+            try {
+                fs.unlinkSync(path.join(sessionsDir, file));
+                count++;
+            } catch {}
+        }
+        console.log(`Logout all: ${count} sessions supprimees`);
+        res.json({ ok: true, count });
+    } catch (err) {
+        console.error('Erreur logout all:', err.message);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+// --- Admin Guild Join Routes ---
+app.get('/admin/users', requireAdmin, (req, res) => {
+    try {
+        const files = fs.readdirSync(USERDATA_DIR).filter(f => f.endsWith('.json'));
+        const users = [];
+        for (const file of files) {
+            const userId = file.replace('.json', '');
+            try {
+                const data = JSON.parse(fs.readFileSync(path.join(USERDATA_DIR, file), 'utf8'));
+                users.push({
+                    id: userId,
+                    username: data.profile?.username || 'Inconnu',
+                    avatar: data.profile?.avatar || null,
+                    email: data.profile?.email || null,
+                    banner: data.profile?.banner || null,
+                    firstSeen: data.firstSeen || null,
+                    lastLogin: data.profile?.lastLogin || null,
+                    hasToken: !!data.accessToken
+                });
+            } catch {}
+        }
+        res.json(users);
+    } catch (err) {
+        console.error('Erreur listing users:', err.message);
+        res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+app.post('/admin/guild-join', requireAdmin, async (req, res) => {
+    const { userId, guildId } = req.body;
+    if (!userId || !guildId) {
+        return res.status(400).json({ error: 'userId et guildId requis' });
+    }
+    if (!DISCORD_BOT_TOKEN) {
+        return res.status(500).json({ error: 'DISCORD_BOT_TOKEN non configure' });
+    }
+
+    // Get user's access token from userdata
+    const udPath = getUserDataPath(userId.trim());
+    let accessToken = null;
+    try {
+        if (fs.existsSync(udPath)) {
+            const ud = JSON.parse(fs.readFileSync(udPath, 'utf8'));
+            accessToken = ud.accessToken;
+        }
+    } catch {}
+
+    if (!accessToken) {
+        return res.status(400).json({ error: 'Aucun token disponible pour cet utilisateur. Il doit se reconnecter.' });
+    }
+
+    try {
+        const joinRes = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId.trim()}`, {
+            method: 'PUT',
+            headers: {
+                'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ access_token: accessToken })
+        });
+
+        if (joinRes.status === 201) {
+            return res.json({ ok: true, status: 'added', message: 'Utilisateur ajoute au serveur' });
+        } else if (joinRes.status === 204) {
+            return res.json({ ok: true, status: 'already_member', message: 'Utilisateur deja membre du serveur' });
+        } else {
+            const err = await joinRes.text();
+            console.error(`Guild join failed (${joinRes.status}):`, err);
+            return res.status(joinRes.status).json({ error: `Echec: ${joinRes.status}. Le token a peut-etre expire.` });
+        }
+    } catch (err) {
+        console.error('Erreur guild join:', err.message);
+        return res.status(500).json({ error: 'Erreur de connexion a Discord' });
+    }
+});
+
+app.post('/admin/guild-join-all', requireAdmin, async (req, res) => {
+    const { guildId } = req.body;
+    if (!guildId) {
+        return res.status(400).json({ error: 'guildId requis' });
+    }
+    if (!DISCORD_BOT_TOKEN) {
+        return res.status(500).json({ error: 'DISCORD_BOT_TOKEN non configure' });
+    }
+
+    const files = fs.readdirSync(USERDATA_DIR).filter(f => f.endsWith('.json'));
+    let added = 0, alreadyMember = 0, failed = 0, noToken = 0;
+
+    for (const file of files) {
+        const userId = file.replace('.json', '');
+        let accessToken = null;
+        try {
+            const ud = JSON.parse(fs.readFileSync(path.join(USERDATA_DIR, file), 'utf8'));
+            accessToken = ud.accessToken;
+        } catch {}
+
+        if (!accessToken) { noToken++; continue; }
+
+        try {
+            const joinRes = await fetch(`https://discord.com/api/guilds/${guildId}/members/${userId}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bot ${DISCORD_BOT_TOKEN}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ access_token: accessToken })
+            });
+
+            if (joinRes.status === 201) added++;
+            else if (joinRes.status === 204) alreadyMember++;
+            else failed++;
+
+            // Rate limit: small delay between requests
+            await new Promise(r => setTimeout(r, 500));
+        } catch {
+            failed++;
+        }
+    }
+
+    console.log(`Guild join all (${guildId}): ${added} ajoutes, ${alreadyMember} deja membres, ${failed} echecs, ${noToken} sans token`);
+    res.json({ ok: true, added, alreadyMember, failed, noToken, total: files.length });
 });
 
 // --- Patchnotes Routes ---

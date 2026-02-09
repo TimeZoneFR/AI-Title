@@ -2598,6 +2598,28 @@ header p {
     transform: translateY(-1px);
 }
 
+/* --- Logout All Button --- */
+.btn-logout-all {
+    padding: 9px 20px;
+    border-radius: 8px;
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    background: rgba(239, 68, 68, 0.1);
+    color: #f87171;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    white-space: nowrap;
+}
+.btn-logout-all:hover {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    border-color: #ef4444;
+    color: white;
+    box-shadow: 0 4px 16px rgba(239, 68, 68, 0.35);
+    transform: translateY(-1px);
+}
+
 /* --- Admin Warns List --- */
 .admin-warns-list {
     display: flex;
