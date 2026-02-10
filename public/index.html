@@ -89,6 +89,14 @@
                 </div>
                 <div class="admin-divider admin-only"></div>
                 <h4 class="admin-subtitle">Gestion des utilisateurs</h4>
+                <div class="admin-toggle-row" style="margin-bottom:12px;">
+                    <span class="admin-toggle-label">Mode confidentiel</span>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="confidentialToggle" onchange="toggleConfidential()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span class="confidential-status off" id="confidentialLabel">Desactive</span>
+                </div>
                 <div class="admin-user-management">
                     <div class="admin-user-row">
                         <input type="text" id="adminUserId" placeholder="ID Discord de l'utilisateur" class="patchnote-input" style="flex:1;" onkeydown="if(event.key==='Enter') openUserModal()">
@@ -533,6 +541,7 @@
                 restoreAdminPanelState();
                 loadAdminBans();
                 loadAdminWarns();
+                initConfidential();
 
                 if (user.isAdmin) {
                     document.getElementById('maintenanceToggle').checked = user.maintenance;
@@ -683,6 +692,28 @@
             }
         }
 
+        // --- Mode confidentiel ---
+        let confidentialMode = localStorage.getItem('confidentialMode') === 'true';
+        function initConfidential() {
+            const toggle = document.getElementById('confidentialToggle');
+            const label = document.getElementById('confidentialLabel');
+            if (toggle) toggle.checked = confidentialMode;
+            if (label) {
+                label.textContent = confidentialMode ? 'Active' : 'Desactive';
+                label.className = confidentialMode ? 'confidential-status on' : 'confidential-status off';
+            }
+        }
+        function toggleConfidential() {
+            const toggle = document.getElementById('confidentialToggle');
+            confidentialMode = toggle.checked;
+            localStorage.setItem('confidentialMode', confidentialMode);
+            const label = document.getElementById('confidentialLabel');
+            label.textContent = confidentialMode ? 'Active' : 'Desactive';
+            label.className = confidentialMode ? 'confidential-status on' : 'confidential-status off';
+            // Re-render le modal si ouvert
+            if (currentModalUserId) openUserModal();
+        }
+
         // --- Admin User Management ---
         // --- Admin User Modal ---
         let currentModalUserId = null;
@@ -726,6 +757,8 @@
                 : null;
             const username = profile ? profile.username : 'Inconnu';
             const email = profile ? profile.email : null;
+            const hidden = confidentialMode;
+            const maskedEmail = email ? email.replace(/^(.{2})(.*)(@.*)$/, (m, a, b, c) => a + '*'.repeat(b.length) + c) : null;
             const firstSeen = data.firstSeen ? new Date(data.firstSeen).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Inconnue';
             const lastLogin = profile && profile.lastLogin ? new Date(profile.lastLogin).toLocaleString('fr-FR') : 'Inconnue';
 
@@ -744,7 +777,7 @@
                 <div class="um-profile-info">
                     <div class="um-username">${escapeHtml(username)}</div>
                     <div class="um-userid">${escapeHtml(data.userId)}</div>
-                    ${email ? '<div class="um-email" style="color:#71717a;font-size:0.82rem;">' + escapeHtml(email) + '</div>' : ''}
+                    ${email ? '<div class="um-email" style="color:#71717a;font-size:0.82rem;">' + escapeHtml(hidden ? maskedEmail : email) + '</div>' : ''}
                 </div>
                 ${data.banned ? '<span class="um-badge um-badge-banned">BANNI</span>' : '<span class="um-badge um-badge-ok">ACTIF</span>'}
                 ${(data.warns || []).length > 0 ? '<span class="um-badge um-badge-warned">' + data.warns.length + ' WARN' + (data.warns.length > 1 ? 'S' : '') + '</span>' : ''}
@@ -756,7 +789,7 @@
                 <div class="um-info-item"><span class="um-info-label">Derniere connexion</span><span class="um-info-value">${lastLogin}</span></div>
                 <div class="um-info-item"><span class="um-info-label">Presets</span><span class="um-info-value">${data.presetsCount}</span></div>
                 <div class="um-info-item"><span class="um-info-label">Titres generes</span><span class="um-info-value">${data.titleHistory.length} sessions</span></div>
-                <div class="um-info-item"><span class="um-info-label">Token valide</span><span class="um-info-value">${data.hasToken ? 'Oui' : 'Non'}</span></div>
+                ${hidden ? '' : '<div class="um-info-item"><span class="um-info-label">Token valide</span><span class="um-info-value">' + (data.hasToken ? 'Oui' : 'Non') + '</span></div>'}
             </div>`;
 
             // --- Ban info si banni ---

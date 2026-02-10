@@ -5,6 +5,7 @@ const FileStore = require('session-file-store')(session);
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
@@ -18,7 +19,8 @@ const {
     SESSION_SECRET,
     DISCORD_WEBHOOK_URL,
     MODERATOR_ROLE_ID,
-    DISCORD_BOT_TOKEN
+    DISCORD_BOT_TOKEN,
+    DISCORD_STATUS_CHANNEL_ID
 } = process.env;
 
 const ADMIN_DISCORD_ID = '1148249755458228286';
@@ -46,6 +48,89 @@ function saveMaintenance(enabled) {
 }
 
 let maintenanceMode = loadMaintenance();
+
+// --- Stats (compteur global de generations) ---
+const STATS_FILE = path.join(__dirname, 'stats.json');
+
+function loadStats() {
+    try {
+        if (fs.existsSync(STATS_FILE)) {
+            return JSON.parse(fs.readFileSync(STATS_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.error('Erreur lecture stats.json:', err.message);
+    }
+    return { totalGenerations: 0, totalTitles: 0, statusMessageId: null };
+}
+
+function saveStats(data) {
+    try {
+        fs.writeFileSync(STATS_FILE, JSON.stringify(data), 'utf8');
+    } catch (err) {
+        console.error('Erreur ecriture stats.json:', err.message);
+    }
+}
+
+let stats = loadStats();
+
+// --- Discord Bot ---
+const discordBot = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+let botReady = false;
+
+async function sendStatusEmbed(status) {
+    if (!botReady || !DISCORD_STATUS_CHANNEL_ID) return;
+    const channel = discordBot.channels.cache.get(DISCORD_STATUS_CHANNEL_ID);
+    if (!channel) {
+        console.error('Salon Discord introuvable:', DISCORD_STATUS_CHANNEL_ID);
+        return;
+    }
+
+    const isOnline = status === 'online';
+    const embed = new EmbedBuilder()
+        .setTitle(isOnline ? 'Serveur en ligne' : 'Serveur en maintenance')
+        .setDescription(isOnline
+            ? 'Le service Stream Generator est operationnel.'
+            : 'Le service est temporairement indisponible.')
+        .setColor(isOnline ? 0x22c55e : 0xf97316)
+        .addFields(
+            { name: 'Statut', value: isOnline ? '🟢 En ligne' : '🔴 En maintenance', inline: true },
+            { name: 'Generations', value: `${stats.totalGenerations}`, inline: true },
+            { name: 'Titres generes', value: `${stats.totalTitles || 0}`, inline: true }
+        )
+        .setFooter({ text: 'Stream Generator — Z-Time Studio' })
+        .setTimestamp();
+
+    // Si un message existant est stocke, on l'edite
+    if (stats.statusMessageId) {
+        try {
+            const existingMsg = await channel.messages.fetch(stats.statusMessageId);
+            await existingMsg.edit({ embeds: [embed] });
+            return;
+        } catch (err) {
+            // Message introuvable (supprime, etc.) → on en envoie un nouveau
+            console.log('Ancien embed introuvable, envoi d\'un nouveau.');
+        }
+    }
+
+    // Envoyer un nouveau message et stocker son ID
+    try {
+        const msg = await channel.send({ embeds: [embed] });
+        stats.statusMessageId = msg.id;
+        saveStats(stats);
+    } catch (err) {
+        console.error('Erreur envoi embed statut:', err.message);
+    }
+}
+
+discordBot.once('ready', () => {
+    botReady = true;
+    console.log(`Bot Discord connecte: ${discordBot.user.tag}`);
+    sendStatusEmbed(maintenanceMode ? 'maintenance' : 'online');
+});
+
+discordBot.on('error', err => {
+    console.error('Erreur bot Discord:', err.message);
+});
 
 // --- Bans ---
 const BANS_FILE = path.join(__dirname, 'bans.json');
@@ -688,6 +773,7 @@ app.post('/admin/maintenance', requireAdmin, (req, res) => {
     maintenanceMode = !!enabled;
     saveMaintenance(maintenanceMode);
     broadcastSSE('maintenance', { enabled: maintenanceMode });
+    sendStatusEmbed(maintenanceMode ? 'maintenance' : 'online');
     console.log(`Maintenance mode: ${maintenanceMode ? 'ON' : 'OFF'}`);
     res.json({ maintenance: maintenanceMode });
 });
@@ -1186,6 +1272,11 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         const titles = content.split('\n').filter(t => t.trim()).map(t => t.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim()).filter(Boolean);
         sendGenerationLog(req.session.user, meta || {}, titles);
 
+        stats.totalGenerations++;
+        stats.totalTitles = (stats.totalTitles || 0) + titles.length;
+        saveStats(stats);
+        sendStatusEmbed(maintenanceMode ? 'maintenance' : 'online');
+
         res.json({ content });
 
     } catch (err) {
@@ -1213,4 +1304,11 @@ setInterval(() => {
 // --- Start ---
 app.listen(PORT, () => {
     console.log(`Serveur demarre sur http://localhost:${PORT}`);
+
+    // Connexion du bot Discord
+    if (DISCORD_BOT_TOKEN && DISCORD_STATUS_CHANNEL_ID) {
+        discordBot.login(DISCORD_BOT_TOKEN).catch(err => {
+            console.error('Erreur connexion bot Discord:', err.message);
+        });
+    }
 });
