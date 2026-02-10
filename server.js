@@ -89,7 +89,7 @@ async function sendStatusEmbed(status) {
     const embed = new EmbedBuilder()
         .setTitle(isOnline ? 'Serveur en ligne' : 'Serveur en maintenance')
         .setDescription(isOnline
-            ? 'Le service Stream Generator est operationnel.'
+            ? 'Le service IA-Title est operationnel.'
             : 'Le service est temporairement indisponible.')
         .setColor(isOnline ? 0x22c55e : 0xf97316)
         .addFields(
@@ -97,7 +97,7 @@ async function sendStatusEmbed(status) {
             { name: 'Generations', value: `${stats.totalGenerations}`, inline: true },
             { name: 'Titres generes', value: `${stats.totalTitles || 0}`, inline: true }
         )
-        .setFooter({ text: 'Stream Generator — Z-Time Studio' })
+        .setFooter({ text: 'IA-Title — Z-Time Studio' })
         .setTimestamp();
 
     // Si un message existant est stocke, on l'edite
