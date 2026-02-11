@@ -25,7 +25,7 @@ body.no-scroll {
     transform: translateX(-50%);
     width: 800px;
     height: 500px;
-    background: radial-gradient(ellipse, rgba(145, 71, 255, 0.15) 0%, transparent 70%);
+    background: radial-gradient(ellipse, rgba(249, 115, 22, 0.15) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
     animation: pulseGlow 6s ease-in-out infinite alternate;
@@ -56,12 +56,12 @@ header {
     justify-content: center;
     width: 68px;
     height: 68px;
-    background: linear-gradient(135deg, #9147ff 0%, #7c3aed 50%, #6d28d9 100%);
+    background: linear-gradient(135deg, #ef4444 0%, #f97316 50%, #ea580c 100%);
     border-radius: 18px;
     margin-bottom: 16px;
     box-shadow:
-        0 0 40px rgba(145, 71, 255, 0.3),
-        0 0 80px rgba(145, 71, 255, 0.1),
+        0 0 40px rgba(249, 115, 22, 0.3),
+        0 0 80px rgba(249, 115, 22, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.15);
     position: relative;
     overflow: hidden;
@@ -91,15 +91,15 @@ header {
     position: absolute;
     inset: 1px;
     border-radius: 17px;
-    background: linear-gradient(135deg, rgba(145, 71, 255, 0.2) 0%, transparent 50%);
+    background: linear-gradient(135deg, rgba(249, 115, 22, 0.2) 0%, transparent 50%);
     pointer-events: none;
 }
 
 .logo:hover {
     transform: scale(1.08) rotate(-2deg);
     box-shadow:
-        0 0 50px rgba(145, 71, 255, 0.45),
-        0 0 100px rgba(145, 71, 255, 0.15),
+        0 0 50px rgba(249, 115, 22, 0.45),
+        0 0 100px rgba(249, 115, 22, 0.15),
         inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
@@ -125,7 +125,7 @@ header {
 header h1 {
     font-size: 2.4rem;
     font-weight: 800;
-    background: linear-gradient(135deg, #c4a1ff 0%, #9147ff 40%, #6d28d9 100%);
+    background: linear-gradient(135deg, #fde68a 0%, #f97316 40%, #ef4444 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -248,7 +248,7 @@ header p {
     width: 32px;
     height: 32px;
     border-radius: 50%;
-    border: 2px solid #9147ff;
+    border: 2px solid #f97316;
 }
 
 .user-bar .user-name {
@@ -316,7 +316,7 @@ header p {
     justify-content: center;
     width: 32px;
     height: 32px;
-    background: rgba(145, 71, 255, 0.15);
+    background: rgba(249, 115, 22, 0.15);
     border-radius: 8px;
     font-size: 1rem;
     line-height: 1;
@@ -364,19 +364,19 @@ header p {
     border-radius: 12px 12px 0 0;
 }
 
-.preset-card[data-mode="normal"]::before { background: linear-gradient(90deg, #6366f1, #9147ff); }
+.preset-card[data-mode="normal"]::before { background: linear-gradient(90deg, #ef4444, #f97316); }
 .preset-card[data-mode="rp"]::before { background: linear-gradient(90deg, #f59e0b, #ef4444); }
 
 .preset-card:hover {
-    border-color: #9147ff;
+    border-color: #f97316;
     transform: translateY(-2px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
 }
 
 .preset-card.active {
-    border-color: #9147ff;
-    background: rgba(145, 71, 255, 0.08);
-    box-shadow: 0 0 0 1px rgba(145, 71, 255, 0.3);
+    border-color: #f97316;
+    background: rgba(249, 115, 22, 0.08);
+    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.3);
 }
 
 .preset-name {
@@ -412,8 +412,8 @@ header p {
     height: 22px;
     border-radius: 6px;
     border: none;
-    background: rgba(145, 71, 255, 0.15);
-    color: #a78bfa;
+    background: rgba(249, 115, 22, 0.15);
+    color: #fdba74;
     font-size: 0.7rem;
     cursor: pointer;
     display: flex;
@@ -423,7 +423,7 @@ header p {
 }
 
 .preset-share:hover {
-    background: #9147ff;
+    background: #f97316;
     color: white;
 }
 
@@ -468,15 +468,15 @@ header p {
 
 .add-preset-row input:focus {
     outline: none;
-    border-color: #9147ff;
+    border-color: #f97316;
 }
 
 .btn-add-preset {
     padding: 9px 18px;
     border-radius: 8px;
-    border: 1px solid #9147ff;
-    background: rgba(145, 71, 255, 0.1);
-    color: #a78bfa;
+    border: 1px solid #f97316;
+    background: rgba(249, 115, 22, 0.1);
+    color: #fdba74;
     font-size: 0.9rem;
     font-weight: 600;
     cursor: pointer;
@@ -486,7 +486,7 @@ header p {
 }
 
 .btn-add-preset:hover {
-    background: #9147ff;
+    background: #f97316;
     color: white;
 }
 
@@ -574,8 +574,8 @@ header p {
 .form-group select:focus,
 .form-group textarea:focus {
     outline: none;
-    border-color: #9147ff;
-    box-shadow: 0 0 0 3px rgba(145, 71, 255, 0.1);
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
 .form-group select option {
@@ -619,9 +619,9 @@ header p {
 }
 
 .mode-btn.active {
-    background: linear-gradient(135deg, #9147ff, #6d28d9);
+    background: linear-gradient(135deg, #ef4444, #f97316);
     color: white;
-    box-shadow: 0 2px 12px rgba(145, 71, 255, 0.3);
+    box-shadow: 0 2px 12px rgba(249, 115, 22, 0.3);
 }
 
 /* --- Buttons --- */
@@ -630,20 +630,20 @@ header p {
     padding: 15px;
     border: none;
     border-radius: 12px;
-    background: linear-gradient(135deg, #9147ff 0%, #7c3aed 50%, #6d28d9 100%);
+    background: linear-gradient(135deg, #ef4444 0%, #f97316 50%, #ea580c 100%);
     color: white;
     font-size: 1rem;
     font-weight: 700;
     cursor: pointer;
     font-family: inherit;
     transition: all 0.25s ease;
-    box-shadow: 0 4px 20px rgba(145, 71, 255, 0.3);
+    box-shadow: 0 4px 20px rgba(249, 115, 22, 0.3);
     text-transform: uppercase;
     letter-spacing: 0.5px;
 }
 
 .btn-generate:hover {
-    box-shadow: 0 6px 30px rgba(145, 71, 255, 0.45);
+    box-shadow: 0 6px 30px rgba(249, 115, 22, 0.45);
     transform: translateY(-1px);
 }
 
@@ -686,8 +686,8 @@ header p {
 }
 
 .result-item:hover {
-    border-color: #9147ff;
-    box-shadow: 0 0 0 1px rgba(145, 71, 255, 0.15);
+    border-color: #f97316;
+    box-shadow: 0 0 0 1px rgba(249, 115, 22, 0.15);
     transform: translateX(4px);
 }
 
@@ -700,10 +700,10 @@ header p {
 
 .btn-copy {
     padding: 7px 16px;
-    border: 1px solid rgba(145, 71, 255, 0.4);
+    border: 1px solid rgba(249, 115, 22, 0.4);
     border-radius: 8px;
-    background: rgba(145, 71, 255, 0.08);
-    color: #a78bfa;
+    background: rgba(249, 115, 22, 0.08);
+    color: #fdba74;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
@@ -713,8 +713,8 @@ header p {
 }
 
 .btn-copy:hover {
-    background: #9147ff;
-    border-color: #9147ff;
+    background: #f97316;
+    border-color: #f97316;
     color: white;
 }
 
@@ -736,7 +736,7 @@ header p {
     width: 32px;
     height: 32px;
     border: 3px solid #27272a;
-    border-top-color: #9147ff;
+    border-top-color: #f97316;
     border-radius: 50%;
     animation: spin 0.7s linear infinite;
     margin-bottom: 12px;
@@ -1047,8 +1047,12 @@ header p {
 }
 
 .confidential-status.on {
-    color: #a78bfa;
-    background: rgba(167, 139, 250, 0.1);
+    color: #f97316;
+    background: rgba(249, 115, 22, 0.12);
+}
+
+.toggle-confidential input:checked + .toggle-slider {
+    background: linear-gradient(135deg, #ef4444, #f97316);
 }
 
 /* --- Admin User Management --- */
@@ -1203,10 +1207,10 @@ header p {
 .btn-patchnotes {
     position: relative;
     padding: 6px 16px;
-    border: 1px solid rgba(145, 71, 255, 0.4);
+    border: 1px solid rgba(249, 115, 22, 0.4);
     border-radius: 8px;
-    background: rgba(145, 71, 255, 0.08);
-    color: #a78bfa;
+    background: rgba(249, 115, 22, 0.08);
+    color: #fdba74;
     font-size: 0.82rem;
     font-weight: 600;
     cursor: pointer;
@@ -1215,8 +1219,8 @@ header p {
 }
 
 .btn-patchnotes:hover {
-    background: #9147ff;
-    border-color: #9147ff;
+    background: #f97316;
+    border-color: #f97316;
     color: white;
 }
 
@@ -1405,7 +1409,7 @@ header p {
 }
 
 .patchnote-item-header:hover h3 {
-    color: #c4a1ff;
+    color: #fdba74;
 }
 
 .patchnote-item-header h3 {
@@ -1488,7 +1492,7 @@ header p {
 }
 
 .footer-link:hover {
-    color: #a78bfa;
+    color: #fdba74;
 }
 
 /* --- CGU Modal --- */
@@ -1632,8 +1636,8 @@ header p {
 }
 
 .custom-select.open .custom-select-trigger {
-    border-color: #9147ff;
-    box-shadow: 0 0 0 3px rgba(145, 71, 255, 0.1);
+    border-color: #f97316;
+    box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.1);
 }
 
 .custom-select-trigger .arrow {
@@ -1646,7 +1650,7 @@ header p {
 
 .custom-select.open .custom-select-trigger .arrow {
     transform: rotate(180deg);
-    fill: #9147ff;
+    fill: #f97316;
 }
 
 .custom-select-options {
@@ -1686,13 +1690,13 @@ header p {
 }
 
 .custom-select-option:hover {
-    background: rgba(145, 71, 255, 0.1);
+    background: rgba(249, 115, 22, 0.1);
     color: #e4e4e7;
 }
 
 .custom-select-option.selected {
-    background: rgba(145, 71, 255, 0.18);
-    color: #c4a1ff;
+    background: rgba(249, 115, 22, 0.18);
+    color: #fdba74;
     font-weight: 600;
 }
 
@@ -1815,7 +1819,7 @@ header p {
 .tag-fix, .tag-badge.tag-fix { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
 .tag-amelioration, .tag-badge.tag-amelioration { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
 .tag-important, .tag-badge.tag-important { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
-.tag-custom, .tag-badge.tag-custom { background: rgba(145, 71, 255, 0.15); color: #c4a1ff; }
+.tag-custom, .tag-badge.tag-custom { background: rgba(249, 115, 22, 0.15); color: #fdba74; }
 
 /* --- Patchnote Schedule --- */
 .patchnote-schedule-toggle {
@@ -1925,13 +1929,13 @@ header p {
 
 /* --- Markdown in Patchnotes --- */
 .patchnote-content .md-code {
-    background: rgba(145, 71, 255, 0.1);
-    border: 1px solid rgba(145, 71, 255, 0.2);
+    background: rgba(249, 115, 22, 0.1);
+    border: 1px solid rgba(249, 115, 22, 0.2);
     border-radius: 4px;
     padding: 1px 6px;
     font-family: 'Consolas', 'Monaco', monospace;
     font-size: 0.85em;
-    color: #c4a1ff;
+    color: #fdba74;
 }
 
 .patchnote-content strong {
@@ -1945,7 +1949,7 @@ header p {
 }
 
 .patchnote-content u {
-    text-decoration-color: rgba(145, 71, 255, 0.5);
+    text-decoration-color: rgba(249, 115, 22, 0.5);
 }
 
 .patchnote-content s {
@@ -2054,12 +2058,12 @@ header p {
 }
 
 .toast-info .toast-icon {
-    background: rgba(145, 71, 255, 0.15);
-    color: #a78bfa;
+    background: rgba(249, 115, 22, 0.15);
+    color: #fdba74;
 }
 
 .toast-info {
-    border-color: rgba(145, 71, 255, 0.2);
+    border-color: rgba(249, 115, 22, 0.2);
 }
 
 .toast-message {
@@ -2182,7 +2186,7 @@ header p {
     width: 56px;
     height: 56px;
     border-radius: 50%;
-    border: 2px solid #9147ff;
+    border: 2px solid #f97316;
     flex-shrink: 0;
     object-fit: cover;
 }
