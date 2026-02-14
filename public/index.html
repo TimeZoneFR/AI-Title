@@ -2196,7 +2196,10 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             }
         }
 
-        function openPatchnotes() {
+        async function openPatchnotes() {
+            if (!patchnotesList || patchnotesList.length === 0) {
+                await loadPatchnotes();
+            }
             const body = document.getElementById('patchnotesModalBody');
             const isAdmin = currentUser && currentUser.isAdmin;
             const visibleNotes = isAdmin ? patchnotesList : patchnotesList.filter(p => p.published !== false);
@@ -2208,25 +2211,30 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                 try { savedState = JSON.parse(localStorage.getItem('patchnoteCollapsed') || '{}'); } catch {}
 
                 body.innerHTML = visibleNotes.map((p, i) => {
-                    const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-                    const tags = (p.tags || []).map(t => `<span class="tag-badge tag-${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
-                    const scheduled = p.published === false ? '<span class="scheduled-badge">Programmee</span>' : '';
-                    const isCollapsed = savedState.hasOwnProperty(p.id) ? savedState[p.id] : i > 0;
-                    const collapsed = isCollapsed ? ' collapsed' : '';
+                    try {
+                        const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+                        const tags = (p.tags || []).map(t => `<span class="tag-badge tag-${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
+                        const scheduled = p.published === false ? '<span class="scheduled-badge">Programmee</span>' : '';
+                        const isCollapsed = savedState.hasOwnProperty(p.id) ? savedState[p.id] : i > 0;
+                        const collapsed = isCollapsed ? ' collapsed' : '';
 
-                    return `<div class="patchnote-item${collapsed}" data-patchnote-id="${p.id}">
-                        <div class="patchnote-item-header" onclick="togglePatchnoteCollapse(this)">
-                            <div>
-                                <h3>${escapeHtml(p.title)} ${scheduled}</h3>
-                                ${tags ? '<div class="patchnote-tags-display">' + tags + '</div>' : ''}
+                        return `<div class="patchnote-item${collapsed}" data-patchnote-id="${p.id}">
+                            <div class="patchnote-item-header" onclick="togglePatchnoteCollapse(this)">
+                                <div>
+                                    <h3>${escapeHtml(p.title || '')} ${scheduled}</h3>
+                                    ${tags ? '<div class="patchnote-tags-display">' + tags + '</div>' : ''}
+                                </div>
+                                <div class="patchnote-header-right">
+                                    <span class="patchnote-date">${date}</span>
+                                    <span class="patchnote-chevron">&#9660;</span>
+                                </div>
                             </div>
-                            <div class="patchnote-header-right">
-                                <span class="patchnote-date">${date}</span>
-                                <span class="patchnote-chevron">&#9660;</span>
-                            </div>
-                        </div>
-                        <div class="patchnote-content">${renderMarkdown(p.content)}</div>
-                    </div>`;
+                            <div class="patchnote-content">${renderMarkdown(p.content || '')}</div>
+                        </div>`;
+                    } catch (err) {
+                        console.error('Erreur rendu patchnote:', p.id, err);
+                        return `<div class="patchnote-item"><p style="color:#fca5a5;">Erreur de rendu pour cette patchnote</p></div>`;
+                    }
                 }).join('');
             }
             document.getElementById('patchnotesModal').classList.add('visible');

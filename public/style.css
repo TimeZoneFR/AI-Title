@@ -1384,6 +1384,10 @@ header p {
     color: white;
 }
 
+#patchnotesModal .modal {
+    max-height: 90vh;
+}
+
 /* --- Patchnotes Modal Items --- */
 .patchnote-item {
     padding: 20px 0;
@@ -1447,7 +1451,7 @@ header p {
     color: #a1a1aa;
     font-size: 0.9rem;
     line-height: 1.65;
-    max-height: 1000px;
+    max-height: 5000px;
     overflow: hidden;
     transition: max-height 0.4s ease, opacity 0.3s ease;
     opacity: 1;
