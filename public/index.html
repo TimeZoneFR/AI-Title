@@ -62,12 +62,20 @@
         <!-- App Content (hidden until logged in) -->
         <div class="app-content" id="appContent">
 
+            <!-- Announcement Banner -->
+            <div class="announcement-banner" id="announcementBanner" style="display:none;">
+                <span class="announcement-icon" id="announcementIcon">&#8505;</span>
+                <span class="announcement-text" id="announcementText"></span>
+                <button class="announcement-close" onclick="dismissAnnouncement()">&times;</button>
+            </div>
+
             <!-- User bar -->
             <div class="user-bar">
                 <div class="user-info">
                     <img class="user-avatar" id="userAvatar" src="" alt="Avatar">
                     <span class="user-name" id="userName"></span>
                 </div>
+                <button class="btn-leaderboard" onclick="openLeaderboard()" title="Classement">&#9819;</button>
                 <button class="btn-patchnotes" onclick="openPatchnotes()">
                     Patchnotes
                     <span class="patchnote-badge" id="patchnoteBadge"></span>
@@ -136,6 +144,30 @@
 
                 <div class="admin-divider admin-only"></div>
                 <div class="admin-only">
+                <h4 class="admin-subtitle">Classement</h4>
+                <div class="admin-guild-section">
+                    <div class="admin-user-row">
+                        <span style="flex:1;color:#b0b0b0;font-size:0.95em;">Reinitialiser le classement de tous les utilisateurs</span>
+                        <button class="btn-logout-all" onclick="resetLeaderboard()">Reset classement</button>
+                    </div>
+                    <div id="resetLeaderboardResult" style="margin-top:8px;"></div>
+                </div>
+                </div>
+
+                <div class="admin-divider admin-only"></div>
+                <div class="admin-only">
+                <h4 class="admin-subtitle">Statistiques</h4>
+                <div id="adminStats" class="admin-stats-section">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+
+                <div class="admin-divider"></div>
+                <h4 class="admin-subtitle">Journal d'activite</h4>
+                <div id="adminLogs" class="admin-logs-section" style="max-height:300px;overflow-y:auto;">
+                    <div class="loading"><div class="spinner"></div></div>
+                </div>
+
+                <div class="admin-divider"></div>
                 <h4 class="admin-subtitle">Publier une Patchnote</h4>
                 <div class="patchnote-form">
                     <input type="text" id="patchnoteTitle" placeholder="Titre de la patchnote" class="patchnote-input">
@@ -243,6 +275,10 @@
                         <label for="context">Contexte supplementaire (optionnel)</label>
                         <textarea id="context" placeholder="Ex: C'est mon premier stream, je fais un defi, je joue avec des viewers..."></textarea>
                     </div>
+                    <div class="form-group">
+                        <label for="customInstructions">Instructions supplementaires (optionnel)</label>
+                        <textarea id="customInstructions" placeholder="Ex: inclure des emojis, ton sarcastique, en anglais, titres courts..."></textarea>
+                    </div>
                 </div>
 
                 <!-- Champs RP -->
@@ -312,11 +348,21 @@
                         <label for="rpContext">Contexte de l'episode (optionnel)</label>
                         <textarea id="rpContext" placeholder="Ex: Mon perso se fait arreter, gros braquage prevu, nouvelle alliance..."></textarea>
                     </div>
+                    <div class="form-group">
+                        <label for="rpCustomInstructions">Instructions supplementaires (optionnel)</label>
+                        <textarea id="rpCustomInstructions" placeholder="Ex: inclure des emojis, ton sarcastique, titres courts..."></textarea>
+                    </div>
                 </div>
 
                 <button class="btn-generate" onclick="generateTitles()" id="btnGenTitles">Generer des titres</button>
                 <div id="titlesResults" class="results"></div>
             </div>
+            <!-- Favoris -->
+            <div class="card favorites-card" id="favoritesSection" style="display:none;">
+                <h2><span class="icon">&#9733;</span> Favoris <button class="btn-export" onclick="exportTitles('favorites')">Exporter TXT</button></h2>
+                <div id="favoritesGrid"></div>
+            </div>
+
             <div class="history-section" id="titlesHistory"></div>
         </div>
 
@@ -327,6 +373,17 @@
                 <a href="#" class="footer-link" onclick="event.preventDefault(); openCGU()">Conditions Generales d'Utilisation</a>
             </div>
         </footer>
+    </div>
+
+    <!-- Modal Leaderboard -->
+    <div class="modal-overlay" id="leaderboardModal" onclick="if(event.target===this) closeLeaderboard()">
+        <div class="modal" style="max-width:520px;">
+            <div class="modal-header">
+                <h2>&#9819; Classement</h2>
+                <button class="modal-close" onclick="closeLeaderboard()">&times;</button>
+            </div>
+            <div class="modal-body" id="leaderboardContent"></div>
+        </div>
     </div>
 
     <!-- Modal Patchnotes -->
@@ -440,6 +497,9 @@
         let serverVersion = null;
         let selectedTags = [];
         let currentMode = 'normal';
+        let favorites = [];
+        let votes = {};
+        let isGenerating = false;
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
@@ -450,6 +510,31 @@
 
             // Initialiser les custom selects
             initCustomSelects();
+
+            // Raccourcis clavier
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'Enter') {
+                    e.preventDefault();
+                    if (document.getElementById('appContent').classList.contains('visible') && !isGenerating) {
+                        generateTitles();
+                    }
+                }
+                if (e.key === 'Escape') {
+                    closePatchnotes(); closeUserModal(); closeCGU(); closeLeaderboard();
+                }
+                if (e.ctrlKey && e.key === 'c') {
+                    const hovered = document.querySelector('.result-item.hovered');
+                    if (hovered) {
+                        e.preventDefault();
+                        const title = hovered.getAttribute('data-title');
+                        if (title) {
+                            navigator.clipboard.writeText(title).then(() => {
+                                showToast('Titre copie !', 'success', 2000);
+                            });
+                        }
+                    }
+                }
+            });
 
             document.getElementById('mood').addEventListener('change', (e) => {
                 document.getElementById('customMoodGroup').style.display =
@@ -548,6 +633,8 @@
                     updateMaintenanceLabel(user.maintenance);
                     // Show admin-only sections
                     document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
+                    loadAdminStats();
+                    loadAdminLogs();
                 } else {
                     // Hide admin-only sections for moderators
                     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
@@ -566,6 +653,22 @@
 
             // Charger les patchnotes
             await loadPatchnotes();
+
+            // Charger annonce
+            loadAnnouncement();
+
+            // Check shared title in URL
+            const sharedCode = new URLSearchParams(window.location.search).get('shared');
+            if (sharedCode) {
+                window.history.replaceState({}, '', '/');
+                try {
+                    const sres = await fetch(`/api/titles/shared/${encodeURIComponent(sharedCode)}`);
+                    if (sres.ok) {
+                        const sdata = await sres.json();
+                        showToast(`Titre partage par ${sdata.sharedBy || 'Inconnu'} : "${sdata.title}"`, 'info', 8000);
+                    }
+                } catch {}
+            }
         }
 
         function showLogin() {
@@ -866,6 +969,7 @@
                 <button class="btn-admin-warn" onclick="modalWarn()">Warn</button>
             </div>`;
             if (isAdmin) {
+                html += `<button class="btn-admin-action btn-clear-hist" onclick="modalResetLeaderboardUser()">Reset classement</button>`;
                 html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
                 // Guild join form
                 html += `<div class="um-guild-join" style="margin-top:12px;">
@@ -1058,6 +1162,107 @@
             });
         }
 
+        // --- Admin: Reset Leaderboard ---
+        async function resetLeaderboard() {
+            const resultDiv = document.getElementById('resetLeaderboardResult');
+            showConfirm('Reinitialiser le classement de TOUS les utilisateurs ?', async () => {
+                resultDiv.innerHTML = '<span style="color:#a1a1aa;">Reinitialisation en cours...</span>';
+                try {
+                    const res = await fetch('/admin/leaderboard/reset', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    let data;
+                    try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status})` }; }
+                    if (res.ok) {
+                        resultDiv.innerHTML = `<span style="color:#22c55e;">${data.count} utilisateur(s) reinitialise(s)</span>`;
+                    } else {
+                        resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur')}</span>`;
+                    }
+                } catch (err) {
+                    resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`;
+                }
+            });
+        }
+
+        async function modalResetLeaderboardUser() {
+            if (!currentModalUserId) return;
+            showConfirm('Reinitialiser le classement de cet utilisateur ?', async () => {
+                try {
+                    const res = await fetch('/admin/leaderboard/reset-user', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ userId: currentModalUserId })
+                    });
+                    let data;
+                    try { data = await res.json(); } catch { data = {}; }
+                    if (res.ok) {
+                        showToast(`Classement reinitialise (${data.oldCount} gen. supprimees).`, 'success');
+                        openUserModal();
+                    } else {
+                        showToast(data.error || 'Erreur', 'error');
+                    }
+                } catch { showToast('Erreur de connexion', 'error'); }
+            });
+        }
+
+        // --- Admin: Annonce ---
+        async function publishAnnouncement(enabled) {
+            const message = document.getElementById('announcementInput').value.trim();
+            const type = document.getElementById('announcementType').value;
+            if (enabled && !message) { showToast('Ecris un message.', 'warning'); return; }
+            try {
+                const res = await fetch('/admin/announcement', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message, type, enabled })
+                });
+                if (res.ok) showToast(enabled ? 'Annonce publiee !' : 'Annonce retiree.', 'success');
+            } catch { showToast('Erreur', 'error'); }
+        }
+
+        // --- Admin: Stats ---
+        async function loadAdminStats() {
+            try {
+                const res = await fetch('/admin/stats');
+                if (!res.ok) return;
+                const data = await res.json();
+                const container = document.getElementById('adminStats');
+                let html = '<div class="stats-cards">';
+                html += `<div class="stat-card"><div class="stat-val">${data.totalGenerations}</div><div class="stat-label">Generations</div></div>`;
+                html += `<div class="stat-card"><div class="stat-val">${data.totalTitles}</div><div class="stat-label">Titres</div></div>`;
+                html += `<div class="stat-card"><div class="stat-val">${data.totalUsers}</div><div class="stat-label">Utilisateurs</div></div>`;
+                html += '</div>';
+                container.innerHTML = html;
+            } catch {}
+        }
+
+        // --- Admin: Logs ---
+        async function loadAdminLogs() {
+            try {
+                const res = await fetch('/admin/logs');
+                if (!res.ok) return;
+                const logs = await res.json();
+                const container = document.getElementById('adminLogs');
+                if (logs.length === 0) {
+                    container.innerHTML = '<div style="color:#52525b;font-size:0.85rem;padding:8px;">Aucune activite.</div>';
+                    return;
+                }
+                const actionColors = { ban: '#ef4444', unban: '#10b981', warn: '#f59e0b', unwarn: '#3b82f6', 'clear-warns': '#f59e0b', 'clear-history': '#f59e0b', maintenance: '#8b5cf6', 'logout-all': '#ef4444', 'reset-leaderboard': '#f97316', 'reset-leaderboard-user': '#f97316' };
+                let html = '';
+                logs.slice(0, 100).forEach(log => {
+                    const color = actionColors[log.action] || '#71717a';
+                    const date = new Date(log.date).toLocaleString('fr-FR');
+                    html += `<div class="admin-log-item">
+                        <span class="log-badge" style="background:${color}20;color:${color};border:1px solid ${color}33;">${escapeHtml(log.action)}</span>
+                        <span class="log-details">${escapeHtml(log.performedBy?.username || '?')}${log.targetId ? ' → ' + log.targetId : ''} ${log.details ? '(' + escapeHtml(log.details) + ')' : ''}</span>
+                        <span class="log-date">${date}</span>
+                    </div>`;
+                });
+                container.innerHTML = html;
+            } catch {}
+        }
+
         async function loadAdminBans() {
             try {
                 const res = await fetch('/admin/bans');
@@ -1126,8 +1331,11 @@
                     presets = data.presets || [];
                     titleHistory = data.titleHistory || [];
                     lastReadPatchnote = data.lastReadPatchnote || 0;
+                    favorites = data.favorites || [];
+                    votes = data.votes || {};
                     renderPresets();
                     renderHistory();
+                    renderFavorites();
                 }
             } catch (err) {
                 console.error('Erreur chargement donnees:', err);
@@ -1139,7 +1347,7 @@
                 await fetch('/api/userdata', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ presets, titleHistory, lastReadPatchnote })
+                    body: JSON.stringify({ presets, titleHistory, lastReadPatchnote, favorites, votes })
                 });
             } catch (err) {
                 console.error('Erreur sauvegarde donnees:', err);
@@ -1213,7 +1421,9 @@
                 rpMood: document.getElementById('rpMood').value,
                 rpCustomMood: document.getElementById('rpCustomMood').value.trim(),
                 rpContext: document.getElementById('rpContext').value.trim(),
-                rpTitleCount: document.getElementById('rpTitleCount').value
+                rpTitleCount: document.getElementById('rpTitleCount').value,
+                customInstructions: document.getElementById('customInstructions').value.trim(),
+                rpCustomInstructions: document.getElementById('rpCustomInstructions').value.trim()
             };
             presets.push(preset);
             saveUserData();
@@ -1250,6 +1460,8 @@
             document.getElementById('rpCustomMoodGroup').style.display = preset.rpMood === 'custom' ? 'block' : 'none';
             document.getElementById('rpContext').value = preset.rpContext || '';
             document.getElementById('rpTitleCount').value = preset.rpTitleCount || '5';
+            document.getElementById('customInstructions').value = preset.customInstructions || '';
+            document.getElementById('rpCustomInstructions').value = preset.rpCustomInstructions || '';
 
             syncAllCustomSelects();
             renderPresets();
@@ -1432,55 +1644,59 @@
                 btn.disabled = true;
                 resultsDiv.innerHTML = '<div class="loading"><div class="spinner"></div><div>Generation en cours...</div></div>';
 
-                systemPrompt = `Tu es un expert en titres de stream Twitch RP francophones. Tu connais parfaitement les codes de la communaute RP (GTA RP, FiveM, etc.).
+                systemPrompt = `Tu es un expert en titres de stream Twitch RP francophones (GTA RP, FiveM).
 
-Regles strictes :
-- Chaque titre DOIT contenir le nom du serveur
+REGLE D'OR : Le titre doit decrire ou teaser CE QUE LE PERSONNAGE VA FAIRE dans l'episode, base sur le contexte fourni. JAMAIS de phrases vagues ou generiques comme "face a son destin", "la verite cachee", "les secrets vont eclater", "rencontre fatale", "dilemme mortel". Ces phrases ne veulent rien dire. Le titre doit etre SPECIFIQUE au contexte.
+
+Regles :
+- Chaque titre DOIT COMMENCER par le nom du serveur TEL QUEL, suivi de " | " (ne pas ajouter ou retirer "WL")
+- Le nom du serveur est TOUJOURS le premier element du titre, avant tout emoji ou texte
 - Max 140 caracteres
-- Utilise des teasing narratifs ("La trahison...", "Il ne sait pas encore que...")
 - Integre le nom du personnage quand fourni
 - Integre le numero d'episode UNIQUEMENT s'il est fourni (ne jamais en inventer un)
-- Varie les formats : questions, suspense, annonces dramatiques, cliffhangers, humour RP
-- Utilise 2-4 emojis par titre pour le rendre vivant et accrocheur
-- Choisis des emojis COHERENTS avec le contexte : ambiance dramatique = emojis sombres/intenses, ambiance fun = emojis joyeux/delirants, action = emojis explosifs/dynamiques
-- Place les emojis de maniere strategique : en debut pour capter l'attention, entre les sections pour separer visuellement, ou en fin pour ponctuer l'emotion
-- Exemples d'emojis par ambiance : immersif (🌑🔮🎭🗡️), fun (😂🤣🎉💀), dramatique (💔😱⚡🔥), chill (☕🌿😌🎶), action (💥🔫🚗💰), mysterieux (👀🕵️❓🌙), gang (🔫💀👊🏴), romantique (💕❤️🌹😍), comedie (🤡😂🎪🤣), politique (🏛️👑🤝📜), survie (⚠️😰🩸🔪), infiltration (🕵️🤫🔍🎭), vengeance (⚔️🔥💀😤), ascension (👑📈💪🏆), tragique (😢💔🥀⚰️), trahison (🗡️🐍💔🎭), braquage (💰🏦💎🔫), proces (⚖️🔨👨‍⚖️🚔), cavale (🏃💨🚗🚨), business (💰💼📊🤑), guerre (⚔️💣🔥☠️), nouvelle vie (🌅🌱🆕✨), chaos (🌪️💥🔥😈), loyaute (🤝💪❤️🛡️), dark (🖤🌑😶‍🌫️🕳️), hype (🔥🎉⚡🚀), trame (📖🎬🎭🔮)
-- REGLE CRUCIALE : chaque emoji doit avoir un LIEN DIRECT avec le contenu du titre et le contexte de l'episode. Pas d'emojis decoratifs ou au hasard. Si le titre parle d'un braquage, utilise des emojis de braquage (💰🔫). Si le contexte mentionne une arrestation, utilise 🚔⚖️. Adapte les emojis au sens precis du titre.
-- Inspire-toi des vrais titres de streamers RP populaires
-- Ne mets JAMAIS de numerotation, tirets ou prefixes. Un titre par ligne.
+- Un titre par ligne, sans numerotation ni tirets ni prefixes
+- Format OBLIGATOIRE : NomServeur | Description${episode ? ' | #Episode' : ''}
 
-Regles de moderation ABSOLUES (JAMAIS d'exception) :
-- Ne JAMAIS generer de contenu haineux, raciste, sexiste, homophobe ou discriminatoire
-- Ne JAMAIS utiliser de noms de dictateurs, criminels de guerre ou figures haineuses (Hitler, Staline, Mussolini, etc.)
-- Ne JAMAIS utiliser d'insultes ou de vulgarites (FDP, TG, ta gueule, nique, merde, putain, connard, salope, pd, ntm, etc.)
-- Ne JAMAIS faire reference a des ideologies extremistes, au nazisme, au terrorisme
-- Si le serveur, le personnage ou le contexte fourni contient du contenu problematique, IGNORE-le et genere des titres neutres et positifs
-- Les titres doivent etre adaptes a TOUT public`;
+CONTENU DES TITRES :
+- Le teasing doit etre LIE AU CONTEXTE FOURNI. Si le contexte dit "BCSO" → le titre parle de police, patrouille, service, brigade. Si le contexte dit "braquage" → le titre parle de casse, plan, butin.
+- Utilise le VOCABULAIRE RP adapte au contexte (codes radio, argot de rue, termes metier, etc.)
+- Varie entre : questions ("Qui va tomber ?"), suspense ("Le plan est en marche..."), action ("En route pour..."), cliffhanger ("Tout bascule au...")
+- INTERDIT les phrases passe-partout qui marchent pour n'importe quel RP. Chaque titre doit etre UNIQUE a cette situation.
 
-                userPrompt = `Genere ${count} titres de stream Twitch RP varies et accrocheurs.
+EMOJIS :
+- 2 emojis par titre, places APRES le nom du serveur (dans la description ou en fin de titre)
+- JAMAIS d'emoji avant le nom du serveur
+- L'emoji doit representer un OBJET ou LIEU concret mentionne dans le contexte :
+  * Police/BCSO/sheriff → 🚔 ou 👮
+  * Formation/apprentissage → 📋 ou 🎓
+  * Braquage → 💰 ou 🔫
+  * Voiture/course → 🚗 ou 🏎️
+  * Tribunal → ⚖️
+  * Hopital → 🏥
+  * Gang/armes → 💀 ou ⚔️
+  * Business → 💼
+  * Prison → 🔒
+- JAMAIS d'emojis abstraits ou emotionnels (❌ 🔮 🎭 ⚡ 💔 😱 🖤 💫 ✨ sur un titre serieux)
 
-Infos :
-Serveur (OBLIGATOIRE dans chaque titre) : ${server}
+Moderation :
+- Jamais de contenu haineux, raciste, discriminatoire, vulgaire
+- Jamais de references a des figures haineuses ou ideologies extremistes
+- Titres adaptes a tout public`;
+
+                userPrompt = `Genere ${count} titres de stream Twitch RP.
+
+Serveur : ${server}
 ${character ? `Personnage : ${character}` : ''}
 ${episode ? `Episode : #${episode}` : ''}
 Ambiance : ${rpMood}
-${rpContext ? `Contexte : ${rpContext}` : ''}
+${rpContext ? `Ce qui va se passer : ${rpContext}` : ''}
 
-Exemples de vrais titres RP populaires (inspire-toi du format) :
-${episode ? `- "🎭 ${server} | L'aventure de ${character || 'Perso'} commence... | #${episode} 🔥"
-- "💀 ${server} | ${character || 'Perso'} va tout perdre... #${episode} 😱"
-- "🗡️ ${server} | La trahison... ⚡ | EP${episode}"
-- "👀 ${server} | Il ne sait pas encore ce qui l'attend... 💔 #${episode}"
-- "🔮 ${server} | ${character || 'Perso'} face a son destin 🌑 | #${episode}"` : `- "🎭 ${server} | L'aventure de ${character || 'Perso'} 🔥"
-- "💀 ${server} | ${character || 'Perso'} va tout perdre... 😱"
-- "🗡️ ${server} | La trahison... ⚡"
-- "👀 ${server} | Il ne sait pas encore ce qui l'attend... 💔"
-- "🔮 ${server} | ${character || 'Perso'} face a son destin 🌑"`}
+RAPPEL : Chaque titre COMMENCE par "${server} | " puis la description. Les titres doivent parler de "${rpContext || rpMood}" de maniere CONCRETE et SPECIFIQUE. Pas de phrases generiques. 2 emojis dans la description, en rapport avec "${rpContext || rpMood}".
 
-Le format classique est : NomDuServeur | Description/Teasing${episode ? ' | #NumeroEpisode' : ''}
-IMPORTANT : Ne rajoute JAMAIS "WL" dans le titre, le nom du serveur fourni contient deja cette info si necessaire.
-Genere ${count} titres UNIQUES et DIFFERENTS de ces exemples. Chaque titre doit donner envie de cliquer et contenir "${server}".
-IMPORTANT : Chaque titre doit contenir 2 a 4 emojis adaptes a l'ambiance "${rpMood}"${rpContext ? `, au contexte "${rpContext}"` : ''} et au contenu du titre. Les emojis doivent etre directement lies a ce que dit le titre (ex: si braquage = 💰🔫💥, si trahison = 🗡️💔, si arrestation = 🚔⚖️, si alliance = 🤝🔥, si mort = 💀⚰️, etc.). Ne mets PAS d'emojis generiques ou au hasard, chaque emoji doit avoir un sens par rapport au titre.`;
+${count} titres, un par ligne, sans numerotation.`;
+
+                const rpInstr = document.getElementById('rpCustomInstructions').value.trim();
+                if (rpInstr) userPrompt += `\n\nInstructions supplementaires de l'utilisateur : ${rpInstr}`;
             } else {
                 game = document.getElementById('game').value.trim();
                 const moodSelect = document.getElementById('mood').value;
@@ -1543,6 +1759,9 @@ ${context ? `- Contexte : ${context}` : ''}
 
 Les titres doivent etre varies, creatifs et donner envie aux viewers de rejoindre le stream.
 IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec le jeu "${game}", l'ambiance "${mood}"${context ? ` et le contexte "${context}"` : ''}. Les emojis doivent etre directement lies au contenu du titre (ex: si le titre parle d'un defi = 💪🏆, si c'est avec des viewers = 👥🎉, si c'est un premier stream = 🌟🚀, si c'est un braquage = 💰🔫, etc.). Ne mets PAS d'emojis generiques ou au hasard, chaque emoji doit avoir un sens par rapport a ce que dit le titre.`;
+
+                const normalInstr = document.getElementById('customInstructions').value.trim();
+                if (normalInstr) userPrompt += `\n\nInstructions supplementaires de l'utilisateur : ${normalInstr}`;
             }
 
             const meta = { mode: currentMode, game, count };
@@ -1553,25 +1772,65 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                 meta.mood = document.getElementById('mood').value;
             }
 
+            isGenerating = true;
             try {
                 const result = await callChatGPT(systemPrompt, userPrompt, meta);
                 const titles = result.split('\n').filter(t => t.trim().length > 0);
-                let html = '<h3>Titres generes</h3>';
-                titles.forEach(title => {
-                    const cleanTitle = title.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim();
-                    if (cleanTitle) {
-                        html += `<div class="result-item">
-                            <div class="text">${escapeHtml(cleanTitle)}</div>
+                const cleanTitles = titles.map(t => t.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim()).filter(Boolean);
+
+                resultsDiv.innerHTML = '<h3>Titres generes</h3>';
+
+                for (let i = 0; i < cleanTitles.length; i++) {
+                    const cleanTitle = cleanTitles[i];
+                    const charCount = cleanTitle.length;
+                    const isOver = charCount > 140;
+                    const isFav = favorites.some(f => f.title === cleanTitle);
+                    const titleHash = btoa(unescape(encodeURIComponent(cleanTitle))).slice(0, 20);
+                    const existingVote = votes[titleHash]?.vote || null;
+
+                    const item = document.createElement('div');
+                    item.className = 'result-item typewriter-hidden';
+                    item.id = `title-${i}`;
+                    item.setAttribute('data-title', cleanTitle);
+                    item.setAttribute('data-hash', titleHash);
+                    item.onmouseenter = function() { this.classList.add('hovered'); };
+                    item.onmouseleave = function() { this.classList.remove('hovered'); };
+
+                    item.innerHTML = `
+                        <div class="result-text"><span class="typewriter-text"></span><span class="char-counter ${isOver ? 'char-over' : ''}">${charCount}/140</span></div>
+                        <div class="result-actions">
+                            <button class="btn-fav ${isFav ? 'favorited' : ''}" onclick="toggleFavorite(this, '${escapeJs(cleanTitle)}')" title="Favori">&#9733;</button>
                             <button class="btn-copy" onclick="copyText(this, '${escapeJs(cleanTitle)}')">Copier</button>
                         </div>`;
-                    }
-                });
-                resultsDiv.innerHTML = html;
+                    resultsDiv.appendChild(item);
 
-                titleHistory.unshift({
+                    await new Promise(r => setTimeout(r, 120));
+                    item.classList.remove('typewriter-hidden');
+                    item.classList.add('typewriter-visible');
+
+                    const textSpan = item.querySelector('.typewriter-text');
+                    for (let c = 0; c < cleanTitle.length; c++) {
+                        textSpan.textContent += cleanTitle[c];
+                        await new Promise(r => setTimeout(r, 10));
+                    }
+                    textSpan.classList.add('typewriter-done');
+                }
+
+                // Historique avec params
+                const historyEntry = {
                     date: new Date().toLocaleString('fr-FR'), game,
-                    titles: titles.map(t => t.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim()).filter(Boolean)
-                });
+                    mode: currentMode,
+                    titles: cleanTitles
+                };
+                if (currentMode === 'rp') {
+                    historyEntry.rpServer = document.getElementById('rpServer').value.trim();
+                    historyEntry.rpCharacter = document.getElementById('rpCharacter').value.trim();
+                    historyEntry.rpEpisode = document.getElementById('rpEpisode').value.trim();
+                    historyEntry.rpMood = document.getElementById('rpMood').value;
+                } else {
+                    historyEntry.mood = document.getElementById('mood').value;
+                }
+                titleHistory.unshift(historyEntry);
                 if (titleHistory.length > 20) titleHistory = titleHistory.slice(0, 20);
                 saveUserData();
                 renderHistory();
@@ -1585,6 +1844,7 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                 }
             }
             btn.disabled = false;
+            isGenerating = false;
         }
 
         // --- History ---
@@ -1592,10 +1852,19 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             const container = document.getElementById('titlesHistory');
             if (titleHistory.length === 0) { container.innerHTML = ''; return; }
 
-            let html = `<h3>Historique <button class="btn-clear" onclick="clearHistory()">Effacer</button></h3>`;
+            let html = `<h3>Historique <span class="history-actions"><button class="btn-export" onclick="exportTitles('history')">Exporter</button><button class="btn-clear" onclick="clearHistory()">Effacer</button></span></h3>`;
             titleHistory.forEach(item => {
                 html += '<div class="history-item">';
                 html += `<div class="meta">${escapeHtml(item.date)}${item.game ? ' &middot; ' + escapeHtml(item.game) : ''}</div>`;
+                const params = [];
+                if (item.mode) params.push(item.mode === 'rp' ? 'RP' : 'Normal');
+                if (item.mood) params.push(item.mood);
+                if (item.rpCharacter) params.push(item.rpCharacter);
+                if (item.rpEpisode) params.push('EP#' + item.rpEpisode);
+                if (item.rpMood) params.push(item.rpMood);
+                if (params.length > 0) {
+                    html += `<div class="history-params">${params.map(p => '<span class="history-param">' + escapeHtml(p) + '</span>').join('')}</div>`;
+                }
                 if (item.titles) {
                     item.titles.forEach(t => { html += `<div style="margin: 3px 0; color: #a1a1aa;">${escapeHtml(t)}</div>`; });
                 }
@@ -1608,6 +1877,177 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             titleHistory = [];
             saveUserData();
             renderHistory();
+        }
+
+        // --- Favoris ---
+        function toggleFavorite(btn, title) {
+            const idx = favorites.findIndex(f => f.title === title);
+            if (idx >= 0) {
+                favorites.splice(idx, 1);
+                btn.classList.remove('favorited');
+                showToast('Retire des favoris', 'info', 2000);
+            } else {
+                if (favorites.length >= 50) { showToast('Maximum 50 favoris atteint.', 'warning'); return; }
+                const game = currentMode === 'rp' ? document.getElementById('rpServer').value.trim() : document.getElementById('game').value.trim();
+                favorites.push({ id: Date.now(), title, game, mode: currentMode, date: new Date().toISOString() });
+                btn.classList.add('favorited');
+                showToast('Ajoute aux favoris !', 'success', 2000);
+            }
+            saveUserData();
+            renderFavorites();
+        }
+
+        function renderFavorites() {
+            const section = document.getElementById('favoritesSection');
+            const grid = document.getElementById('favoritesGrid');
+            if (favorites.length === 0) { section.style.display = 'none'; return; }
+            section.style.display = 'block';
+            let html = '';
+            favorites.forEach((f, i) => {
+                const charCount = f.title.length;
+                const isOver = charCount > 140;
+                html += `<div class="result-item" data-title="${escapeHtml(f.title)}" onmouseenter="this.classList.add('hovered')" onmouseleave="this.classList.remove('hovered')">
+                    <div class="result-text">
+                        ${escapeHtml(f.title)}
+                        <span class="char-counter ${isOver ? 'char-over' : ''}">${charCount}/140</span>
+                    </div>
+                    <div class="result-actions">
+                        <button class="btn-copy" onclick="copyText(this, '${escapeJs(f.title)}')">Copier</button>
+                        <button class="btn-fav-remove" onclick="removeFavorite(${f.id})">&#10005;</button>
+                    </div>
+                </div>`;
+            });
+            grid.innerHTML = html;
+        }
+
+        function removeFavorite(id) {
+            favorites = favorites.filter(f => f.id !== id);
+            saveUserData();
+            renderFavorites();
+            showToast('Favori supprime', 'info', 2000);
+        }
+
+        // --- Export TXT ---
+        function exportTitles(type) {
+            let content = '';
+            const date = new Date().toLocaleDateString('fr-FR');
+            if (type === 'favorites') {
+                content = `IA-Title - Favoris (${date})\n${'='.repeat(40)}\n\n`;
+                favorites.forEach(f => {
+                    content += `${f.title}\n`;
+                    if (f.game) content += `  Jeu: ${f.game} | Mode: ${f.mode || 'normal'}\n`;
+                    content += '\n';
+                });
+            } else {
+                content = `IA-Title - Historique (${date})\n${'='.repeat(40)}\n\n`;
+                titleHistory.forEach(item => {
+                    content += `[${item.date}] ${item.game || ''} (${item.mode || 'normal'})\n`;
+                    (item.titles || []).forEach(t => content += `  ${t}\n`);
+                    content += '\n';
+                });
+            }
+            const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ia-title-${type}-${date.replace(/\//g, '-')}.txt`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('Export telecharge !', 'success', 2000);
+        }
+
+        // --- Annonce ---
+        async function loadAnnouncement() {
+            try {
+                const res = await fetch('/api/announcement');
+                if (res.ok) {
+                    const data = await res.json();
+                    if (data.message && !sessionStorage.getItem('announcementDismissed')) {
+                        const banner = document.getElementById('announcementBanner');
+                        document.getElementById('announcementText').textContent = data.message;
+                        const icons = { info: '&#8505;', warning: '&#9888;', success: '&#10003;' };
+                        document.getElementById('announcementIcon').innerHTML = icons[data.type] || icons.info;
+                        banner.className = `announcement-banner announcement-${data.type || 'info'}`;
+                        banner.style.display = 'flex';
+                    }
+                }
+            } catch {}
+        }
+
+        function dismissAnnouncement() {
+            document.getElementById('announcementBanner').style.display = 'none';
+            sessionStorage.setItem('announcementDismissed', '1');
+        }
+
+        // --- Leaderboard ---
+        async function openLeaderboard() {
+            document.getElementById('leaderboardModal').classList.add('visible');
+            document.body.classList.add('no-scroll');
+            const container = document.getElementById('leaderboardContent');
+            container.innerHTML = '<div class="loading"><div class="spinner"></div><div>Chargement...</div></div>';
+            try {
+                const res = await fetch('/api/leaderboard');
+                if (!res.ok) throw new Error();
+                const leaders = await res.json();
+                if (leaders.length === 0) {
+                    container.innerHTML = '<div style="text-align:center;color:#52525b;padding:20px;">Aucun participant pour le moment.</div>';
+                    return;
+                }
+                const max = leaders[0].count;
+                let html = '';
+
+                // Podium top 3
+                if (leaders.length >= 3) {
+                    const podiumOrder = [leaders[1], leaders[0], leaders[2]];
+                    const podiumClasses = ['lb-podium-2nd', 'lb-podium-1st', 'lb-podium-3rd'];
+                    const podiumMedals = ['&#129352;', '&#129351;', '&#129353;'];
+                    const podiumLabels = ['2e', '1er', '3e'];
+                    html += '<div class="lb-podium">';
+                    podiumOrder.forEach((l, pi) => {
+                        const avatarUrl = l.avatar ? `https://cdn.discordapp.com/avatars/${l.userId}/${l.avatar}.png?size=128` : `https://cdn.discordapp.com/embed/avatars/0.png`;
+                        const isCurrentUser = currentUser && l.userId === currentUser.id;
+                        html += `<div class="lb-podium-item ${podiumClasses[pi]}${isCurrentUser ? ' lb-me' : ''}">
+                            <div class="lb-podium-medal">${podiumMedals[pi]}</div>
+                            <div class="lb-podium-avatar-wrap">
+                                <img class="lb-podium-avatar" src="${avatarUrl}" alt="">
+                            </div>
+                            <div class="lb-podium-name">${escapeHtml(l.username)}</div>
+                            <div class="lb-podium-count">${l.count} <span>gen.</span></div>
+                            <div class="lb-podium-pedestal">
+                                <span class="lb-podium-label">${podiumLabels[pi]}</span>
+                            </div>
+                        </div>`;
+                    });
+                    html += '</div>';
+                }
+
+                // Liste des suivants (ou tous si < 3)
+                const startIdx = leaders.length >= 3 ? 3 : 0;
+                if (startIdx < leaders.length) {
+                    html += '<div class="leaderboard-list">';
+                    for (let i = startIdx; i < leaders.length; i++) {
+                        const l = leaders[i];
+                        const pct = max > 0 ? (l.count / max * 100).toFixed(0) : 0;
+                        const isCurrentUser = currentUser && l.userId === currentUser.id;
+                        const avatarUrl = l.avatar ? `https://cdn.discordapp.com/avatars/${l.userId}/${l.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/0.png`;
+                        html += `<div class="lb-entry${isCurrentUser ? ' lb-me' : ''}">
+                            <span class="lb-rank">#${i + 1}</span>
+                            <img class="lb-avatar" src="${avatarUrl}" alt="">
+                            <span class="lb-name">${escapeHtml(l.username)}</span>
+                            <div class="lb-bar-bg"><div class="lb-bar" style="width:${pct}%"></div></div>
+                            <span class="lb-count">${l.count}</span>
+                        </div>`;
+                    }
+                    html += '</div>';
+                }
+
+                container.innerHTML = html;
+            } catch { container.innerHTML = '<div class="error-msg">Erreur de chargement</div>'; }
+        }
+
+        function closeLeaderboard() {
+            document.getElementById('leaderboardModal').classList.remove('visible');
+            document.body.classList.remove('no-scroll');
         }
 
         // --- Markdown light parser ---
@@ -1693,6 +2133,21 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                         // Re-verifier l'auth pour restaurer l'etat correct
                         checkAuth();
                     }
+                }
+            });
+
+            eventSource.addEventListener('announcement', (e) => {
+                const ann = JSON.parse(e.data);
+                if (ann.message) {
+                    sessionStorage.removeItem('announcementDismissed');
+                    document.getElementById('announcementText').textContent = ann.message;
+                    const icons = { info: '&#8505;', warning: '&#9888;', success: '&#10003;' };
+                    document.getElementById('announcementIcon').innerHTML = icons[ann.type] || icons.info;
+                    const banner = document.getElementById('announcementBanner');
+                    banner.className = `announcement-banner announcement-${ann.type || 'info'}`;
+                    banner.style.display = 'flex';
+                } else {
+                    document.getElementById('announcementBanner').style.display = 'none';
                 }
             });
 

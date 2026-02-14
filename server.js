@@ -7,6 +7,7 @@ const path = require('path');
 const fs = require('fs');
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const app = express();
+app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // --- Config ---
@@ -375,6 +376,7 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         secure: false, // mettre true si HTTPS en production
+        sameSite: 'lax',
         maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
     }
 }));
@@ -775,6 +777,7 @@ app.post('/admin/maintenance', requireAdmin, (req, res) => {
     broadcastSSE('maintenance', { enabled: maintenanceMode });
     sendStatusEmbed(maintenanceMode ? 'maintenance' : 'online');
     console.log(`Maintenance mode: ${maintenanceMode ? 'ON' : 'OFF'}`);
+    addLog('maintenance', req.session.user, null, maintenanceMode ? 'ON' : 'OFF');
     res.json({ maintenance: maintenanceMode });
 });
 
@@ -853,6 +856,7 @@ app.post('/admin/ban', requireStaff, (req, res) => {
     bans[cleanId] = ban;
     saveBans(bans);
     console.log(`Ban: ${cleanId} - ${ban.permanent ? 'Permanent' : 'Jusqu\'a ' + ban.until} - Raison: ${ban.reason}`);
+    addLog('ban', req.session.user, cleanId, ban.reason);
     res.json({ ok: true, ban });
 });
 
@@ -866,6 +870,7 @@ app.post('/admin/unban', requireAdmin, (req, res) => {
     delete bans[userId];
     saveBans(bans);
     console.log(`Unban: ${userId}`);
+    addLog('unban', req.session.user, userId);
     res.json({ ok: true });
 });
 
@@ -882,6 +887,7 @@ app.post('/admin/clear-history', requireAdmin, (req, res) => {
             data.titleHistory = [];
             fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
             console.log(`Historique supprime pour: ${userId.trim()}`);
+            addLog('clear-history', req.session.user, userId.trim());
             return res.json({ ok: true });
         }
         return res.status(404).json({ error: 'Aucune donnee trouvee pour cet utilisateur' });
@@ -927,6 +933,7 @@ app.post('/admin/warn', requireStaff, (req, res) => {
     warns[cleanId].push(warn);
     saveWarns(warns);
     console.log(`Warn: ${cleanId} - Raison: ${warn.reason} (Total: ${warns[cleanId].length})`);
+    addLog('warn', req.session.user, cleanId, warn.reason);
     res.json({ ok: true, warn, total: warns[cleanId].length });
 });
 
@@ -948,6 +955,7 @@ app.post('/admin/unwarn', requireAdmin, (req, res) => {
     if (warns[userId].length === 0) delete warns[userId];
     saveWarns(warns);
     console.log(`Unwarn: ${userId}${warnId ? ' (warn #' + warnId + ')' : ''}`);
+    addLog('unwarn', req.session.user, userId);
     res.json({ ok: true });
 });
 
@@ -959,6 +967,7 @@ app.post('/admin/clear-warns', requireAdmin, (req, res) => {
     delete warns[userId];
     saveWarns(warns);
     console.log(`Clear warns: ${userId}`);
+    addLog('clear-warns', req.session.user, userId);
     res.json({ ok: true });
 });
 
@@ -979,6 +988,7 @@ app.post('/admin/logout-all', requireAdmin, (req, res) => {
             } catch {}
         }
         console.log(`Logout all: ${count} sessions supprimees`);
+        addLog('logout-all', req.session.user, null, `${count} sessions`);
         res.json({ ok: true, count });
     } catch (err) {
         console.error('Erreur logout all:', err.message);
@@ -1274,6 +1284,22 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
 
         stats.totalGenerations++;
         stats.totalTitles = (stats.totalTitles || 0) + titles.length;
+        const today = new Date().toISOString().slice(0, 10);
+        if (!stats.dailyStats) stats.dailyStats = {};
+        if (!stats.dailyStats[today]) stats.dailyStats[today] = { generations: 0, titles: 0 };
+        stats.dailyStats[today].generations++;
+        stats.dailyStats[today].titles += titles.length;
+        if (!stats.activeUsers) stats.activeUsers = {};
+        if (!stats.activeUsers[today]) stats.activeUsers[today] = 0;
+        const udPath = getUserDataPath(req.session.user.id);
+        try {
+            const ud = JSON.parse(fs.readFileSync(udPath, 'utf8'));
+            if (ud._lastActiveDay !== today) {
+                ud._lastActiveDay = today;
+                fs.writeFileSync(udPath, JSON.stringify(ud), 'utf8');
+                stats.activeUsers[today]++;
+            }
+        } catch {}
         saveStats(stats);
         sendStatusEmbed(maintenanceMode ? 'maintenance' : 'online');
 
@@ -1283,6 +1309,220 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         console.error('API proxy error:', err);
         res.status(500).json({ error: 'Erreur interne du serveur' });
     }
+});
+
+// --- Announcement ---
+const ANNOUNCEMENT_FILE = path.join(__dirname, 'announcement.json');
+
+function loadAnnouncement() {
+    try {
+        if (fs.existsSync(ANNOUNCEMENT_FILE)) {
+            return JSON.parse(fs.readFileSync(ANNOUNCEMENT_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.error('Erreur lecture announcement.json:', err.message);
+    }
+    return { message: '', type: 'info', enabled: false };
+}
+
+function saveAnnouncement(data) {
+    try {
+        fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data), 'utf8');
+    } catch (err) {
+        console.error('Erreur ecriture announcement.json:', err.message);
+    }
+}
+
+app.get('/api/announcement', (req, res) => {
+    const ann = loadAnnouncement();
+    if (!ann.enabled) return res.json({});
+    res.json({ message: ann.message, type: ann.type });
+});
+
+app.post('/admin/announcement', requireAdmin, (req, res) => {
+    const { message, type, enabled } = req.body;
+    const ann = { message: message || '', type: type || 'info', enabled: !!enabled };
+    saveAnnouncement(ann);
+    if (enabled) {
+        broadcastSSE('announcement', { message: ann.message, type: ann.type });
+    } else {
+        broadcastSSE('announcement', { message: '' });
+    }
+    addLog('announcement', req.session.user, null, enabled ? message : 'Annonce retiree');
+    res.json({ ok: true });
+});
+
+// --- Admin Logs ---
+const LOGS_FILE = path.join(__dirname, 'admin-logs.json');
+
+function loadLogs() {
+    try {
+        if (fs.existsSync(LOGS_FILE)) {
+            return JSON.parse(fs.readFileSync(LOGS_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.error('Erreur lecture admin-logs.json:', err.message);
+    }
+    return [];
+}
+
+function saveLogs(logs) {
+    try {
+        fs.writeFileSync(LOGS_FILE, JSON.stringify(logs), 'utf8');
+    } catch (err) {
+        console.error('Erreur ecriture admin-logs.json:', err.message);
+    }
+}
+
+function addLog(action, performedBy, targetId, details) {
+    const logs = loadLogs();
+    logs.unshift({
+        action,
+        performedBy: performedBy ? { id: performedBy.id, username: performedBy.username } : null,
+        targetId: targetId || null,
+        details: details || '',
+        date: new Date().toISOString()
+    });
+    if (logs.length > 500) logs.length = 500;
+    saveLogs(logs);
+}
+
+app.get('/admin/logs', requireAdmin, (req, res) => {
+    res.json(loadLogs());
+});
+
+// --- Admin Stats ---
+app.get('/admin/stats', requireAdmin, (req, res) => {
+    const currentStats = loadStats();
+    let totalUsers = 0;
+    const udDir = path.join(__dirname, 'userdata');
+    try {
+        if (fs.existsSync(udDir)) {
+            totalUsers = fs.readdirSync(udDir).filter(f => f.endsWith('.json')).length;
+        }
+    } catch {}
+
+    res.json({
+        totalGenerations: currentStats.totalGenerations || 0,
+        totalTitles: currentStats.totalTitles || 0,
+        totalUsers,
+        dailyStats: currentStats.dailyStats || {},
+        activeUsers: currentStats.activeUsers || {}
+    });
+});
+
+// --- Shared Titles ---
+const SHARED_TITLES_FILE = path.join(__dirname, 'shared-titles.json');
+
+function loadSharedTitles() {
+    try {
+        if (fs.existsSync(SHARED_TITLES_FILE)) {
+            return JSON.parse(fs.readFileSync(SHARED_TITLES_FILE, 'utf8'));
+        }
+    } catch (err) {
+        console.error('Erreur lecture shared-titles.json:', err.message);
+    }
+    return {};
+}
+
+function saveSharedTitles(data) {
+    try {
+        fs.writeFileSync(SHARED_TITLES_FILE, JSON.stringify(data), 'utf8');
+    } catch (err) {
+        console.error('Erreur ecriture shared-titles.json:', err.message);
+    }
+}
+
+app.post('/api/titles/share', requireAuth, checkBan, (req, res) => {
+    const { title, game, mode } = req.body;
+    if (!title) return res.status(400).json({ error: 'Titre requis' });
+
+    const code = generateShareCode();
+    const shared = loadSharedTitles();
+    shared[code] = {
+        title,
+        game: game || '',
+        mode: mode || 'normal',
+        author: { id: req.session.user.id, username: req.session.user.username },
+        date: new Date().toISOString()
+    };
+    saveSharedTitles(shared);
+    res.json({ code });
+});
+
+app.get('/api/titles/shared/:code', requireAuth, (req, res) => {
+    const shared = loadSharedTitles();
+    const entry = shared[req.params.code];
+    if (!entry) return res.status(404).json({ error: 'Code introuvable' });
+    res.json(entry);
+});
+
+// --- Leaderboard ---
+app.get('/api/leaderboard', requireAuth, (req, res) => {
+    const udDir = path.join(__dirname, 'userdata');
+    const leaders = [];
+    try {
+        if (fs.existsSync(udDir)) {
+            const files = fs.readdirSync(udDir).filter(f => f.endsWith('.json'));
+            files.forEach(file => {
+                try {
+                    const data = JSON.parse(fs.readFileSync(path.join(udDir, file), 'utf8'));
+                    const count = (data.titleHistory || []).length;
+                    if (count > 0) {
+                        leaders.push({
+                            username: data.profile?.username || file.replace('.json', ''),
+                            avatar: data.profile?.avatar || null,
+                            userId: file.replace('.json', ''),
+                            count
+                        });
+                    }
+                } catch {}
+            });
+        }
+    } catch {}
+    leaders.sort((a, b) => b.count - a.count);
+    res.json(leaders.slice(0, 50));
+});
+
+// --- Admin: Reset Leaderboard ---
+app.post('/admin/leaderboard/reset', requireAdmin, (req, res) => {
+    const udDir = path.join(__dirname, 'userdata');
+    let count = 0;
+    try {
+        if (fs.existsSync(udDir)) {
+            const files = fs.readdirSync(udDir).filter(f => f.endsWith('.json'));
+            files.forEach(file => {
+                try {
+                    const filePath = path.join(udDir, file);
+                    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                    if (data.titleHistory && data.titleHistory.length > 0) {
+                        data.titleHistory = [];
+                        fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
+                        count++;
+                    }
+                } catch {}
+            });
+        }
+    } catch {}
+    addLog('reset-leaderboard', req.session.user, null, `${count} utilisateur(s) reinitialise(s)`);
+    res.json({ ok: true, count });
+});
+
+app.post('/admin/leaderboard/reset-user', requireAdmin, (req, res) => {
+    const { userId } = req.body;
+    if (!userId || !userId.trim()) {
+        return res.status(400).json({ error: 'ID utilisateur requis' });
+    }
+    const filePath = path.join(__dirname, 'userdata', `${userId.trim()}.json`);
+    if (fs.existsSync(filePath)) {
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        const oldCount = (data.titleHistory || []).length;
+        data.titleHistory = [];
+        fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
+        addLog('reset-leaderboard-user', req.session.user, userId.trim(), `${oldCount} generation(s) supprimee(s)`);
+        return res.json({ ok: true, oldCount });
+    }
+    return res.status(404).json({ error: 'Utilisateur non trouve' });
 });
 
 // --- Scheduler: auto-publish scheduled patchnotes ---
