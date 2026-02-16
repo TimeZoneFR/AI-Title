@@ -651,6 +651,8 @@ app.get('/auth/me', async (req, res) => {
             }
         }
 
+        console.log(`[DEBUG] User ${req.session.user.username} roles:`, req.session.user.roles, '| PARTNER_ROLE_ID:', PARTNER_ROLE_ID, '| isPartner:', isPartner(req.session.user));
+
         const banned = isUserBanned(req.session.user.id);
         const banInfo = banned ? loadBans()[req.session.user.id] : null;
         const userWarns = getUserWarns(req.session.user.id);
