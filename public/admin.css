@@ -1,0 +1,234 @@
+/* --- Admin Page Specific Styles --- */
+
+/* Navigation bar */
+.admin-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 24px;
+    padding: 12px 18px;
+    background: rgba(24, 24, 30, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid rgba(245, 158, 11, 0.2);
+    border-radius: 12px;
+}
+
+.admin-nav-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex: 1;
+    min-width: 0;
+}
+
+.admin-nav-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #f97316;
+    flex-shrink: 0;
+}
+
+.admin-nav-name {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: #e4e4e7;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.admin-nav-role {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 3px 10px;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.admin-nav-role.role-admin {
+    background: rgba(245, 158, 11, 0.15);
+    color: #fbbf24;
+    border: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.admin-nav-role.role-mod {
+    background: rgba(99, 102, 241, 0.15);
+    color: #a5b4fc;
+    border: 1px solid rgba(99, 102, 241, 0.25);
+}
+
+.admin-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.admin-nav-btn {
+    padding: 6px 16px;
+    border: 1px solid #27272a;
+    border-radius: 8px;
+    background: transparent;
+    color: #71717a;
+    font-size: 0.82rem;
+    font-weight: 600;
+    text-decoration: none;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.admin-nav-btn:hover {
+    border-color: #f97316;
+    color: #fdba74;
+    background: rgba(249, 115, 22, 0.08);
+}
+
+/* Admin sections */
+.admin-section {
+    background: rgba(24, 24, 30, 0.7);
+    backdrop-filter: blur(16px);
+    border: 1px solid #27272a;
+    border-radius: 14px;
+    padding: 20px 24px;
+    margin-bottom: 16px;
+}
+
+.admin-section-title {
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #f59e0b;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Toggle row */
+.admin-toggle-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.admin-toggle-label {
+    font-size: 0.9rem;
+    color: #a1a1aa;
+    font-weight: 500;
+}
+
+/* Patchnote form actions */
+.patchnote-form-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.patchnote-form-actions .btn-publish {
+    flex: 1;
+    align-self: auto;
+}
+
+.btn-preview {
+    flex: 1;
+    padding: 10px 20px;
+    border: 1px solid #f97316;
+    border-radius: 10px;
+    background: transparent;
+    color: #f97316;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+
+.btn-preview:hover {
+    background: rgba(249, 115, 22, 0.1);
+}
+
+/* Patchnote preview */
+.patchnote-preview {
+    margin-top: 16px;
+    border: 1px solid rgba(249, 115, 22, 0.3);
+    border-radius: 14px;
+    background: rgba(24, 24, 30, 0.9);
+    overflow: hidden;
+}
+
+.patchnote-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    background: rgba(249, 115, 22, 0.08);
+    border-bottom: 1px solid rgba(249, 115, 22, 0.15);
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: #f59e0b;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.patchnote-preview-close {
+    background: none;
+    border: none;
+    color: #71717a;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 0 4px;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.patchnote-preview-close:hover {
+    color: #fca5a5;
+}
+
+.patchnote-preview-body {
+    padding: 16px;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+    .admin-nav {
+        flex-wrap: wrap;
+        gap: 10px;
+        padding: 10px 14px;
+    }
+
+    .admin-nav-right {
+        width: 100%;
+        justify-content: flex-end;
+    }
+
+    .admin-section {
+        padding: 16px;
+        border-radius: 12px;
+    }
+
+    .admin-section-title {
+        font-size: 0.78rem;
+    }
+}
+
+@media (max-width: 420px) {
+    .admin-nav {
+        padding: 8px 10px;
+    }
+
+    .admin-nav-btn,
+    .admin-nav .btn-logout {
+        padding: 5px 12px;
+        font-size: 0.78rem;
+    }
+
+    .admin-section {
+        padding: 14px;
+        border-radius: 10px;
+    }
+}

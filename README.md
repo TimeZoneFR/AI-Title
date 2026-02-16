@@ -55,7 +55,7 @@
 - Notification Discord en temps reel (webhook rouge + ping role)
 - Staff (admins + moderateurs) exempts de la moderation
 
-**Panel Admin** &mdash; Gestion complete depuis l'interface :
+**Panel Admin** &mdash; Page d'administration separee (`/admin`) avec gestion complete :
 - Mode maintenance (temps reel via SSE)
 - Systeme de bans (temporaires / permanents)
 - Systeme de warns (manuels + automatiques, avec tracabilite de l'auteur)
@@ -63,7 +63,6 @@
 - Suppression d'historique
 - Forcer un utilisateur ou tous les utilisateurs a rejoindre un serveur Discord
 - Deconnexion de toutes les sessions utilisateurs
-- Systeme d'annonces (info, alerte, succes) en temps reel
 - Dashboard statistiques (generations, titres, utilisateurs actifs sur 7 jours)
 - Journal d'activite admin (toutes les actions tracees)
 - Reset classement (global ou individuel)
@@ -74,7 +73,7 @@
 - Systeme de warns manuels
 - Pas d'acces au deban, suppression de warns, maintenance, patchnotes
 
-**Patchnotes** &mdash; Systeme de notes de mise a jour avec publication programmee, tags, et notifications temps reel.
+**Patchnotes** &mdash; Systeme de notes de mise a jour avec publication programmee, tags, apercu avant publication, et notifications temps reel.
 
 **Logs Discord** &mdash; Chaque generation est loguee via webhook dans un salon Discord. Les avertissements automatiques sont envoyes dans un embed rouge avec mention du role de moderation.
 
@@ -154,7 +153,9 @@ Le serveur demarre sur `http://localhost:3000`
 ├── server.js              # Serveur Express (API + auth + admin + bot)
 ├── public/
 │   ├── index.html         # Interface utilisateur (SPA)
-│   ├── style.css          # Styles (theme sombre + glow orange)
+│   ├── admin.html         # Panel d'administration (page separee)
+│   ├── style.css          # Styles partages (theme sombre + glow orange)
+│   ├── admin.css          # Styles specifiques au panel admin
 │   └── logo.png           # Logo de l'application
 ├── userdata/              # Donnees utilisateur (1 fichier JSON par user)
 ├── sessions/              # Sessions Express (file-store)
@@ -163,7 +164,6 @@ Le serveur demarre sur `http://localhost:3000`
 ├── patchnotes.json        # Notes de mise a jour
 ├── shared-presets.json    # Presets partages (codes)
 ├── shared-titles.json     # Titres partages (codes)
-├── announcement.json      # Annonce active
 ├── admin-logs.json        # Journal d'activite admin
 ├── stats.json             # Statistiques globales
 ├── maintenance.json       # Etat du mode maintenance
@@ -200,7 +200,6 @@ Le serveur demarre sur `http://localhost:3000`
 | `POST` | `/api/titles/share` | Partage un titre (retourne un code) |
 | `GET` | `/api/titles/shared/:code` | Recupere un titre partage |
 | `GET` | `/api/leaderboard` | Classement des generateurs |
-| `GET` | `/api/announcement` | Annonce active (public) |
 | `GET` | `/api/patchnotes` | Liste des patchnotes |
 | `GET` | `/api/events` | Flux SSE (temps reel) |
 | `GET` | `/api/status` | Statut maintenance (public) |
@@ -213,7 +212,7 @@ Le serveur demarre sur `http://localhost:3000`
 | Methode | Route | Description |
 |---------|-------|-------------|
 | `GET/POST` | `/admin/maintenance` | Gestion mode maintenance |
-| `POST` | `/admin/announcement` | Gestion des annonces |
+| `GET` | `/admin` | Page du panel admin |
 | `GET` | `/admin/user/:id` | Recherche utilisateur |
 | `GET` | `/admin/users` | Liste de tous les utilisateurs |
 | `GET` | `/admin/bans` | Liste des bans |

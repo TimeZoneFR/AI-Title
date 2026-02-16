@@ -20,11 +20,13 @@ const {
     SESSION_SECRET,
     DISCORD_WEBHOOK_URL,
     MODERATOR_ROLE_ID,
+    PARTNER_ROLE_ID,
     DISCORD_BOT_TOKEN,
     DISCORD_STATUS_CHANNEL_ID
 } = process.env;
 
 const ADMIN_DISCORD_ID = '1148249755458228286';
+const DAILY_TITLE_LIMIT = 20;
 
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 
@@ -223,6 +225,14 @@ async function checkContentModeration(userPrompt, meta) {
             userPrompt
         ].join(' ');
 
+        const isRP = meta?.mode === 'rp';
+
+        const rpException = isRP ? `
+
+Contenu AUTORISE en mode RP (ne PAS flag) :
+- References aux addictions, drogues, alcool, substances (drogue, came, coke, meth, deal, trafic, addiction, overdose, rehab, alcool, joint, beuh, shit, etc.)
+- Ces themes sont des elements narratifs courants en GTA RP et ne doivent PAS etre consideres comme inappropries dans ce contexte.` : '';
+
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -234,7 +244,7 @@ async function checkContentModeration(userPrompt, meta) {
                 messages: [
                     {
                         role: 'system',
-                        content: `Tu es un moderateur de contenu. Analyse le texte fourni et determine s'il contient du contenu inapproprie.
+                        content: `Tu es un moderateur de contenu. Analyse le texte fourni et determine s'il contient du contenu inapproprie.${isRP ? ' Le texte provient d\'un contexte de roleplay GTA RP.' : ''}
 
 Contenu INTERDIT :
 - Noms de dictateurs, criminels de guerre, figures haineuses (Hitler, Staline, Mussolini, Pol Pot, etc.)
@@ -244,7 +254,7 @@ Contenu INTERDIT :
 - Contenu sexuel ou pornographique
 - Incitation a la violence ou a la haine
 - Harcelement, menaces
-- Tout contenu inapproprie pour un service tout public
+- Tout contenu inapproprie pour un service tout public${rpException}
 
 Reponds UNIQUEMENT par un JSON strict :
 {"flagged": true/false, "reason": "raison courte si flagged, sinon vide"}
@@ -277,16 +287,30 @@ Sois strict : au moindre doute, flag le contenu.`
 function sendWarnWebhook(user, reason, totalWarns, meta) {
     if (!DISCORD_WEBHOOK_URL) return;
 
+    const fields = [
+        { name: 'Utilisateur', value: `${user.username} (\`${user.id}\`)`, inline: true },
+        { name: 'Warns', value: `${totalWarns}/3`, inline: true },
+        { name: 'Raison', value: reason },
+        { name: 'Mode', value: meta?.mode === 'rp' ? 'RP' : 'Normal', inline: true },
+        { name: meta?.mode === 'rp' ? 'Serveur' : 'Jeu', value: meta?.game || 'Non specifie', inline: true }
+    ];
+
+    if (meta?.mode === 'rp') {
+        if (meta.character) fields.push({ name: 'Personnage', value: meta.character, inline: true });
+        if (meta.mood) fields.push({ name: 'Ambiance', value: meta.mood, inline: true });
+        if (meta.rpContext) fields.push({ name: 'Contexte RP', value: meta.rpContext.substring(0, 200) });
+        if (meta.rpEpisode) fields.push({ name: 'Episode', value: `#${meta.rpEpisode}`, inline: true });
+        if (meta.rpInstructions) fields.push({ name: 'Instructions custom', value: meta.rpInstructions.substring(0, 200) });
+    } else {
+        if (meta?.mood) fields.push({ name: 'Ambiance', value: meta.mood, inline: true });
+        if (meta?.context) fields.push({ name: 'Contexte', value: meta.context.substring(0, 200) });
+        if (meta?.customInstructions) fields.push({ name: 'Instructions custom', value: meta.customInstructions.substring(0, 200) });
+    }
+
     const embed = {
         title: '⚠️ Avertissement automatique',
         color: 0xff0000,
-        fields: [
-            { name: 'Utilisateur', value: `${user.username} (\`${user.id}\`)`, inline: true },
-            { name: 'Warns', value: `${totalWarns}/3`, inline: true },
-            { name: 'Raison', value: reason },
-            { name: 'Mode', value: meta?.mode === 'rp' ? 'RP' : 'Normal', inline: true },
-            { name: meta?.mode === 'rp' ? 'Serveur' : 'Jeu', value: meta?.game || 'Non specifie', inline: true }
-        ],
+        fields,
         timestamp: new Date().toISOString()
     };
 
@@ -388,6 +412,11 @@ app.use(express.static(path.join(__dirname, 'public'), {
     }
 }));
 
+// Route /admin -> admin.html
+app.get('/admin', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
 // --- Auth Middleware ---
 function requireAuth(req, res, next) {
     if (req.session && req.session.user) {
@@ -408,6 +437,48 @@ function isStaff(user) {
     if (user.id === ADMIN_DISCORD_ID) return true;
     if (MODERATOR_ROLE_ID && user.roles && user.roles.includes(MODERATOR_ROLE_ID)) return true;
     return false;
+}
+
+function isPartner(user) {
+    if (!user) return false;
+    return PARTNER_ROLE_ID && user.roles && user.roles.includes(PARTNER_ROLE_ID);
+}
+
+function hasUnlimitedGenerations(user) {
+    return isStaff(user) || isPartner(user);
+}
+
+function getUserDailyCredits(userId) {
+    const filePath = getUserDataPath(userId);
+    try {
+        if (fs.existsSync(filePath)) {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            const today = new Date().toISOString().slice(0, 10);
+            if (data._creditsDate === today) {
+                return data._creditsUsed || 0;
+            }
+        }
+    } catch {}
+    return 0;
+}
+
+function addUserDailyCredits(userId, count) {
+    const filePath = getUserDataPath(userId);
+    try {
+        let data = {};
+        if (fs.existsSync(filePath)) {
+            data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        }
+        const today = new Date().toISOString().slice(0, 10);
+        if (data._creditsDate !== today) {
+            data._creditsDate = today;
+            data._creditsUsed = 0;
+        }
+        data._creditsUsed = (data._creditsUsed || 0) + count;
+        fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
+        return data._creditsUsed;
+    } catch {}
+    return 0;
 }
 
 function requireStaff(req, res, next) {
@@ -590,6 +661,11 @@ app.get('/auth/me', async (req, res) => {
             isAdmin: req.session.user.id === ADMIN_DISCORD_ID,
             isModerator: !!isModerator,
             isStaff: req.session.user.id === ADMIN_DISCORD_ID || !!isModerator,
+            isPartner: !!isPartner(req.session.user),
+            _debugRoles: req.session.user.roles || [],
+            unlimitedGenerations: hasUnlimitedGenerations(req.session.user),
+            creditsUsed: hasUnlimitedGenerations(req.session.user) ? 0 : getUserDailyCredits(req.session.user.id),
+            creditsMax: DAILY_TITLE_LIMIT,
             maintenance: maintenanceMode,
             banned,
             banInfo,
@@ -800,6 +876,9 @@ app.get('/admin/user/:id', requireStaff, (req, res) => {
 
     const userWarns = getUserWarns(userId);
 
+    const today = new Date().toISOString().slice(0, 10);
+    const creditsUsed = userData && userData._creditsDate === today ? (userData._creditsUsed || 0) : 0;
+
     res.json({
         userId,
         exists: !!userData,
@@ -810,7 +889,9 @@ app.get('/admin/user/:id', requireStaff, (req, res) => {
         banned: isBanned,
         banInfo: isBanned ? ban : null,
         warns: userWarns,
-        hasToken: !!userData?.accessToken
+        hasToken: !!userData?.accessToken,
+        creditsUsed,
+        creditsMax: DAILY_TITLE_LIMIT
     });
 });
 
@@ -893,6 +974,29 @@ app.post('/admin/clear-history', requireAdmin, (req, res) => {
         return res.status(404).json({ error: 'Aucune donnee trouvee pour cet utilisateur' });
     } catch (err) {
         console.error('Erreur clear history:', err.message);
+        return res.status(500).json({ error: 'Erreur serveur' });
+    }
+});
+
+app.post('/admin/reset-credits', requireAdmin, (req, res) => {
+    const { userId } = req.body;
+    if (!userId || !userId.trim()) {
+        return res.status(400).json({ error: 'ID utilisateur requis' });
+    }
+
+    const filePath = getUserDataPath(userId.trim());
+    try {
+        if (fs.existsSync(filePath)) {
+            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+            data._creditsUsed = 0;
+            data._creditsDate = '';
+            fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
+            addLog('reset-credits', req.session.user, userId.trim());
+            return res.json({ ok: true });
+        }
+        return res.status(404).json({ error: 'Aucune donnee trouvee pour cet utilisateur' });
+    } catch (err) {
+        console.error('Erreur reset credits:', err.message);
         return res.status(500).json({ error: 'Erreur serveur' });
     }
 });
@@ -1214,6 +1318,19 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         return res.status(400).json({ error: 'Parametres manquants' });
     }
 
+    // Check quota (staff + partenaires = illimite)
+    if (!hasUnlimitedGenerations(req.session.user)) {
+        const used = getUserDailyCredits(req.session.user.id);
+        if (used >= DAILY_TITLE_LIMIT) {
+            return res.status(429).json({
+                error: 'limit',
+                message: `Tu as atteint ta limite de ${DAILY_TITLE_LIMIT} titres pour aujourd'hui. Reviens demain !`,
+                creditsUsed: used,
+                creditsMax: DAILY_TITLE_LIMIT
+            });
+        }
+    }
+
     // Moderation automatique via ChatGPT (staff exempt)
     const isUserStaff = isStaff(req.session.user);
     if (!isUserStaff) {
@@ -1282,6 +1399,12 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         const titles = content.split('\n').filter(t => t.trim()).map(t => t.replace(/^\d+[\.\)]\s*/, '').replace(/^[-*]\s*/, '').trim()).filter(Boolean);
         sendGenerationLog(req.session.user, meta || {}, titles);
 
+        // Mettre a jour les credits quotidiens
+        let creditsUsed = null;
+        if (!hasUnlimitedGenerations(req.session.user)) {
+            creditsUsed = addUserDailyCredits(req.session.user.id, titles.length);
+        }
+
         stats.totalGenerations++;
         stats.totalTitles = (stats.totalTitles || 0) + titles.length;
         const today = new Date().toISOString().slice(0, 10);
@@ -1303,53 +1426,17 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         saveStats(stats);
         sendStatusEmbed(maintenanceMode ? 'maintenance' : 'online');
 
-        res.json({ content });
+        const resData = { content };
+        if (creditsUsed !== null) {
+            resData.creditsUsed = creditsUsed;
+            resData.creditsMax = DAILY_TITLE_LIMIT;
+        }
+        res.json(resData);
 
     } catch (err) {
         console.error('API proxy error:', err);
         res.status(500).json({ error: 'Erreur interne du serveur' });
     }
-});
-
-// --- Announcement ---
-const ANNOUNCEMENT_FILE = path.join(__dirname, 'announcement.json');
-
-function loadAnnouncement() {
-    try {
-        if (fs.existsSync(ANNOUNCEMENT_FILE)) {
-            return JSON.parse(fs.readFileSync(ANNOUNCEMENT_FILE, 'utf8'));
-        }
-    } catch (err) {
-        console.error('Erreur lecture announcement.json:', err.message);
-    }
-    return { message: '', type: 'info', enabled: false };
-}
-
-function saveAnnouncement(data) {
-    try {
-        fs.writeFileSync(ANNOUNCEMENT_FILE, JSON.stringify(data), 'utf8');
-    } catch (err) {
-        console.error('Erreur ecriture announcement.json:', err.message);
-    }
-}
-
-app.get('/api/announcement', (req, res) => {
-    const ann = loadAnnouncement();
-    if (!ann.enabled) return res.json({});
-    res.json({ message: ann.message, type: ann.type });
-});
-
-app.post('/admin/announcement', requireAdmin, (req, res) => {
-    const { message, type, enabled } = req.body;
-    const ann = { message: message || '', type: type || 'info', enabled: !!enabled };
-    saveAnnouncement(ann);
-    if (enabled) {
-        broadcastSSE('announcement', { message: ann.message, type: ann.type });
-    } else {
-        broadcastSSE('announcement', { message: '' });
-    }
-    addLog('announcement', req.session.user, null, enabled ? message : 'Annonce retiree');
-    res.json({ ok: true });
 });
 
 // --- Admin Logs ---

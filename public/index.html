@@ -62,19 +62,14 @@
         <!-- App Content (hidden until logged in) -->
         <div class="app-content" id="appContent">
 
-            <!-- Announcement Banner -->
-            <div class="announcement-banner" id="announcementBanner" style="display:none;">
-                <span class="announcement-icon" id="announcementIcon">&#8505;</span>
-                <span class="announcement-text" id="announcementText"></span>
-                <button class="announcement-close" onclick="dismissAnnouncement()">&times;</button>
-            </div>
-
             <!-- User bar -->
             <div class="user-bar">
                 <div class="user-info">
                     <img class="user-avatar" id="userAvatar" src="" alt="Avatar">
                     <span class="user-name" id="userName"></span>
+                    <span class="user-role-badge" id="userRoleBadge" style="display:none;"></span>
                 </div>
+                <span class="credits-counter" id="creditsCounter" style="display:none;"></span>
                 <button class="btn-leaderboard" onclick="openLeaderboard()" title="Classement">&#9819;</button>
                 <button class="btn-patchnotes" onclick="openPatchnotes()">
                     Patchnotes
@@ -83,126 +78,11 @@
                 <button class="btn-logout" onclick="logout()">Deconnexion</button>
             </div>
 
-            <!-- Admin Panel -->
+            <!-- Admin Link -->
             <div class="admin-panel" id="adminPanel">
-                <h3 onclick="toggleAdminPanel()" class="admin-panel-toggle" id="adminPanelTitle"><span class="admin-badge">&#9881;</span> Panel Admin <span class="admin-chevron" id="adminChevron">&#9660;</span></h3>
-                <div class="admin-panel-content" id="adminPanelContent">
-                <div class="admin-controls admin-only">
-                    <span class="control-label">Mode maintenance</span>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenance()">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="maintenance-status off" id="maintenanceLabel">Desactive</span>
-                </div>
-                <div class="admin-divider admin-only"></div>
-                <h4 class="admin-subtitle">Gestion des utilisateurs</h4>
-                <div class="admin-toggle-row" style="margin-bottom:12px;">
-                    <span class="admin-toggle-label">Mode confidentiel</span>
-                    <label class="toggle-switch toggle-confidential">
-                        <input type="checkbox" id="confidentialToggle" onchange="toggleConfidential()">
-                        <span class="toggle-slider"></span>
-                    </label>
-                    <span class="confidential-status off" id="confidentialLabel">Desactive</span>
-                </div>
-                <div class="admin-user-management">
-                    <div class="admin-user-row">
-                        <input type="text" id="adminUserId" placeholder="ID Discord de l'utilisateur" class="patchnote-input" style="flex:1;" onkeydown="if(event.key==='Enter') openUserModal()">
-                        <button class="btn-admin-search" onclick="openUserModal()">Rechercher</button>
-                    </div>
-                </div>
-
-                <!-- Liste des bans actifs -->
-                <div id="adminBansList" class="admin-bans-list"></div>
-
-                <!-- Liste des warns actifs -->
-                <div id="adminWarnsList" class="admin-warns-list"></div>
-
-                <div class="admin-divider admin-only"></div>
-                <div class="admin-only">
-                <h4 class="admin-subtitle">Gestion des serveurs Discord</h4>
-                <div class="admin-guild-section">
-                    <div class="admin-user-row">
-                        <input type="text" id="adminGuildId" placeholder="ID du serveur Discord" class="patchnote-input" style="flex:1;">
-                        <button class="btn-admin-search" onclick="guildJoinAll()">Tous rejoindre</button>
-                    </div>
-                    <div id="guildJoinResult" style="margin-top:8px;"></div>
-                </div>
-                </div>
-
-                <div class="admin-divider admin-only"></div>
-                <div class="admin-only">
-                <h4 class="admin-subtitle">Sessions</h4>
-                <div class="admin-guild-section">
-                    <div class="admin-user-row">
-                        <span style="flex:1;color:#b0b0b0;font-size:0.95em;">Deconnecter tous les utilisateurs (sauf vous)</span>
-                        <button class="btn-logout-all" onclick="logoutAll()">Tout deconnecter</button>
-                    </div>
-                    <div id="logoutAllResult" style="margin-top:8px;"></div>
-                </div>
-                </div>
-
-                <div class="admin-divider admin-only"></div>
-                <div class="admin-only">
-                <h4 class="admin-subtitle">Classement</h4>
-                <div class="admin-guild-section">
-                    <div class="admin-user-row">
-                        <span style="flex:1;color:#b0b0b0;font-size:0.95em;">Reinitialiser le classement de tous les utilisateurs</span>
-                        <button class="btn-logout-all" onclick="resetLeaderboard()">Reset classement</button>
-                    </div>
-                    <div id="resetLeaderboardResult" style="margin-top:8px;"></div>
-                </div>
-                </div>
-
-                <div class="admin-divider admin-only"></div>
-                <div class="admin-only">
-                <h4 class="admin-subtitle">Statistiques</h4>
-                <div id="adminStats" class="admin-stats-section">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-
-                <div class="admin-divider"></div>
-                <h4 class="admin-subtitle">Journal d'activite</h4>
-                <div id="adminLogs" class="admin-logs-section" style="max-height:300px;overflow-y:auto;">
-                    <div class="loading"><div class="spinner"></div></div>
-                </div>
-
-                <div class="admin-divider"></div>
-                <h4 class="admin-subtitle">Publier une Patchnote</h4>
-                <div class="patchnote-form">
-                    <input type="text" id="patchnoteTitle" placeholder="Titre de la patchnote" class="patchnote-input">
-                    <textarea id="patchnoteContent" placeholder="Contenu de la patchnote..." class="patchnote-textarea"></textarea>
-
-                    <!-- Tags -->
-                    <div class="patchnote-tags-section">
-                        <label class="patchnote-label">Tags</label>
-                        <div class="patchnote-tags-row">
-                            <button type="button" class="tag-toggle" data-tag="Nouveau" onclick="togglePatchnoteTag(this)">Nouveau</button>
-                            <button type="button" class="tag-toggle" data-tag="Fix" onclick="togglePatchnoteTag(this)">Fix</button>
-                            <button type="button" class="tag-toggle" data-tag="Amelioration" onclick="togglePatchnoteTag(this)">Amelioration</button>
-                            <button type="button" class="tag-toggle" data-tag="Important" onclick="togglePatchnoteTag(this)">Important</button>
-                        </div>
-                        <div class="patchnote-custom-tag-row">
-                            <input type="text" id="customTagInput" placeholder="Tag personnalise..." class="patchnote-input" style="flex:1;">
-                            <button type="button" class="btn-add-tag" onclick="addCustomTag()">+</button>
-                        </div>
-                        <div class="patchnote-selected-tags" id="selectedTagsList"></div>
-                    </div>
-
-                    <!-- Schedule -->
-                    <div class="patchnote-schedule-section">
-                        <label class="patchnote-schedule-toggle">
-                            <input type="checkbox" id="scheduleToggle" onchange="toggleSchedule()">
-                            <span>Programmer la publication</span>
-                        </label>
-                        <input type="datetime-local" id="scheduleDateTime" class="patchnote-input patchnote-schedule-input" style="display:none;">
-                    </div>
-
-                    <button class="btn-publish" onclick="publishPatchnote()">Publier</button>
-                </div>
-                <div id="adminPatchnotesList" class="admin-patchnotes-list"></div>
-                </div>
-                </div>
+                <a href="/admin" class="admin-panel-link">
+                    <span class="admin-badge">&#9881;</span> Panel Admin <span style="margin-left:auto;font-size:0.75rem;color:#71717a;">&#10148;</span>
+                </a>
             </div>
 
             <!-- Presets -->
@@ -211,7 +91,8 @@
                 <div class="presets-grid" id="presetsGrid"></div>
                 <div class="add-preset-row">
                     <input type="text" id="presetName" placeholder="Nom du preset">
-                    <button class="btn-add-preset" onclick="addPreset()">+ Sauvegarder</button>
+                    <button class="btn-add-preset" id="btnSavePreset" onclick="addPreset()">+ Sauvegarder</button>
+                    <button class="btn-cancel-edit" id="btnCancelEdit" onclick="cancelEditPreset()" style="display:none;">Annuler</button>
                 </div>
                 <div class="import-preset-row">
                     <input type="text" id="importCode" placeholder="Code de partage (ex: abc123)" maxlength="6">
@@ -399,18 +280,6 @@
         </div>
     </div>
 
-    <!-- Modal User Management -->
-    <div class="modal-overlay" id="userModal" onclick="if(event.target===this) closeUserModal()">
-        <div class="modal user-modal">
-            <div class="modal-header">
-                <h2>Gestion utilisateur</h2>
-                <button class="modal-close" onclick="closeUserModal()">&times;</button>
-            </div>
-            <div class="modal-body" id="userModalBody">
-                <div class="loading"><div class="spinner"></div><div>Chargement...</div></div>
-            </div>
-        </div>
-    </div>
 
     <!-- Modal CGU -->
     <div class="modal-overlay" id="cguModal" onclick="if(event.target===this) closeCGU()">
@@ -432,7 +301,6 @@
                 <p>Le Service propose :</p>
                 <ul>
                     <li>La generation de titres de stream Twitch personnalises</li>
-                    <li>La generation de notifications d'annonce pour les streams</li>
                     <li>Un systeme de presets pour sauvegarder les preferences de style</li>
                 </ul>
                 <p>Le contenu est genere par un modele d'intelligence artificielle (OpenAI). Z-Time Studio ne garantit pas la pertinence, l'exactitude ou l'originalite du contenu genere.</p>
@@ -490,12 +358,12 @@
         let currentUser = null;
         let presets = [];
         let activePreset = null;
+        let editingPresetId = null;
         let titleHistory = [];
         let lastReadPatchnote = 0;
         let patchnotesList = [];
         let eventSource = null;
         let serverVersion = null;
-        let selectedTags = [];
         let currentMode = 'normal';
         let favorites = [];
         let votes = {};
@@ -520,7 +388,7 @@
                     }
                 }
                 if (e.key === 'Escape') {
-                    closePatchnotes(); closeUserModal(); closeCGU(); closeLeaderboard();
+                    closePatchnotes(); closeCGU(); closeLeaderboard();
                 }
                 if (e.ctrlKey && e.key === 'c') {
                     const hovered = document.querySelector('.result-item.hovered');
@@ -611,6 +479,25 @@
                 : `https://cdn.discordapp.com/embed/avatars/${parseInt(user.discriminator || '0') % 5}.png`;
             document.getElementById('userAvatar').src = avatarUrl;
 
+            // Role badge
+            const roleBadge = document.getElementById('userRoleBadge');
+            if (user.isAdmin) {
+                roleBadge.textContent = 'Admin';
+                roleBadge.className = 'user-role-badge role-admin';
+                roleBadge.style.display = '';
+            } else if (user.isModerator) {
+                roleBadge.textContent = 'Mod';
+                roleBadge.className = 'user-role-badge role-mod';
+                roleBadge.style.display = '';
+            } else if (user.isPartner) {
+                roleBadge.textContent = 'Partenaire';
+                roleBadge.className = 'user-role-badge role-partner';
+                roleBadge.style.display = '';
+            }
+
+            // Credits counter
+            updateCreditsDisplay(user);
+
             // Show warn banner if user has warnings
             if (user.warns && user.warns.length > 0 && !user.isStaff) {
                 const lastWarn = user.warns[user.warns.length - 1];
@@ -620,31 +507,12 @@
                 }
             }
 
-            // Show admin/mod panel if staff
+            // Show admin link if staff
             if (user.isAdmin || user.isModerator) {
                 document.getElementById('adminPanel').classList.add('visible');
-                restoreAdminPanelState();
-                loadAdminBans();
-                loadAdminWarns();
-                initConfidential();
-
-                if (user.isAdmin) {
-                    document.getElementById('maintenanceToggle').checked = user.maintenance;
-                    updateMaintenanceLabel(user.maintenance);
-                    // Show admin-only sections
-                    document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
-                    loadAdminStats();
-                    loadAdminLogs();
-                } else {
-                    // Hide admin-only sections for moderators
-                    document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-                }
-
-                // Update panel title and style for moderators
                 if (user.isModerator && !user.isAdmin) {
-                    document.getElementById('adminPanelTitle').innerHTML = '<span class="mod-badge">&#9733;</span> Panel Moderateur <span class="admin-chevron" id="adminChevron">&#9660;</span>';
                     document.getElementById('adminPanel').classList.add('mod-panel');
-                    restoreAdminPanelState();
+                    document.getElementById('adminPanel').querySelector('.admin-panel-link').innerHTML = '<span class="mod-badge">&#9733;</span> Panel Moderateur <span style="margin-left:auto;font-size:0.75rem;color:#71717a;">&#10148;</span>';
                 }
             }
 
@@ -653,9 +521,6 @@
 
             // Charger les patchnotes
             await loadPatchnotes();
-
-            // Charger annonce
-            loadAnnouncement();
 
             // Check shared title in URL
             const sharedCode = new URLSearchParams(window.location.search).get('shared');
@@ -751,576 +616,8 @@
             showLogin();
         }
 
-        // --- Admin ---
-        function toggleAdminPanel() {
-            const content = document.getElementById('adminPanelContent');
-            const chevron = document.getElementById('adminChevron');
-            content.classList.toggle('collapsed');
-            chevron.classList.toggle('collapsed');
-            localStorage.setItem('adminPanelCollapsed', content.classList.contains('collapsed'));
-        }
 
-        function restoreAdminPanelState() {
-            if (localStorage.getItem('adminPanelCollapsed') === 'true') {
-                document.getElementById('adminPanelContent').classList.add('collapsed');
-                document.getElementById('adminChevron').classList.add('collapsed');
-            }
-        }
-
-        async function toggleMaintenance() {
-            const enabled = document.getElementById('maintenanceToggle').checked;
-            try {
-                const res = await fetch('/admin/maintenance', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ enabled })
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    updateMaintenanceLabel(data.maintenance);
-                }
-            } catch (err) {
-                document.getElementById('maintenanceToggle').checked = !enabled;
-            }
-        }
-
-        function updateMaintenanceLabel(isOn) {
-            const label = document.getElementById('maintenanceLabel');
-            if (isOn) {
-                label.textContent = 'Active';
-                label.className = 'maintenance-status on';
-            } else {
-                label.textContent = 'Desactive';
-                label.className = 'maintenance-status off';
-            }
-        }
-
-        // --- Mode confidentiel ---
-        let confidentialMode = localStorage.getItem('confidentialMode') === 'true';
-        function initConfidential() {
-            const toggle = document.getElementById('confidentialToggle');
-            const label = document.getElementById('confidentialLabel');
-            if (toggle) toggle.checked = confidentialMode;
-            if (label) {
-                label.textContent = confidentialMode ? 'Active' : 'Desactive';
-                label.className = confidentialMode ? 'confidential-status on' : 'confidential-status off';
-            }
-        }
-        function toggleConfidential() {
-            const toggle = document.getElementById('confidentialToggle');
-            confidentialMode = toggle.checked;
-            localStorage.setItem('confidentialMode', confidentialMode);
-            const label = document.getElementById('confidentialLabel');
-            label.textContent = confidentialMode ? 'Active' : 'Desactive';
-            label.className = confidentialMode ? 'confidential-status on' : 'confidential-status off';
-            // Re-render le modal si ouvert
-            if (currentModalUserId) openUserModal();
-        }
-
-        // --- Admin User Management ---
-        // --- Admin User Modal ---
-        let currentModalUserId = null;
-
-        async function openUserModal() {
-            const userId = document.getElementById('adminUserId').value.trim();
-            if (!userId) return showToast('Entre un ID Discord.', 'warning');
-
-            currentModalUserId = userId;
-            document.getElementById('userModal').classList.add('visible');
-            document.body.style.overflow = 'hidden';
-            document.getElementById('userModalBody').innerHTML = '<div class="loading"><div class="spinner"></div><div>Chargement...</div></div>';
-
-            try {
-                const res = await fetch(`/admin/user/${userId}`);
-                if (!res.ok) { showToast('Erreur serveur', 'error'); closeUserModal(); return; }
-                const data = await res.json();
-                renderUserModal(data);
-                initCustomSelects();
-            } catch (err) {
-                showToast('Erreur de connexion', 'error');
-                closeUserModal();
-            }
-        }
-
-        function closeUserModal() {
-            document.getElementById('userModal').classList.remove('visible');
-            document.body.style.overflow = '';
-            currentModalUserId = null;
-        }
-
-        function renderUserModal(data) {
-            const body = document.getElementById('userModalBody');
-            const isAdmin = currentUser && currentUser.isAdmin;
-            const profile = data.profile;
-            const avatarUrl = profile && profile.avatar
-                ? `https://cdn.discordapp.com/avatars/${data.userId}/${profile.avatar}.png?size=64`
-                : `https://cdn.discordapp.com/embed/avatars/0.png`;
-            const bannerUrl = profile && profile.banner
-                ? `https://cdn.discordapp.com/banners/${data.userId}/${profile.banner}.png?size=480`
-                : null;
-            const username = profile ? profile.username : 'Inconnu';
-            const email = profile ? profile.email : null;
-            const hidden = confidentialMode;
-            const maskedEmail = email ? email.replace(/^(.{2})(.*)(@.*)$/, (m, a, b, c) => a + '*'.repeat(b.length) + c) : null;
-            const firstSeen = data.firstSeen ? new Date(data.firstSeen).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }) : 'Inconnue';
-            const lastLogin = profile && profile.lastLogin ? new Date(profile.lastLogin).toLocaleString('fr-FR') : 'Inconnue';
-
-            let html = '';
-
-            // --- Banner ---
-            if (bannerUrl) {
-                html += `<div class="um-banner" style="background-image:url('${bannerUrl}');height:120px;border-radius:8px 8px 0 0;background-size:cover;background-position:center;margin:-16px -16px 12px -16px;"></div>`;
-            } else if (profile && profile.banner_color) {
-                html += `<div class="um-banner" style="background:${profile.banner_color};height:60px;border-radius:8px 8px 0 0;margin:-16px -16px 12px -16px;"></div>`;
-            }
-
-            // --- Header profil ---
-            html += `<div class="um-profile">
-                <img class="um-avatar" src="${avatarUrl}" alt="Avatar">
-                <div class="um-profile-info">
-                    <div class="um-username">${escapeHtml(username)}</div>
-                    <div class="um-userid">${escapeHtml(data.userId)}</div>
-                    ${email ? '<div class="um-email" style="color:#71717a;font-size:0.82rem;">' + escapeHtml(hidden ? maskedEmail : email) + '</div>' : ''}
-                </div>
-                ${data.banned ? '<span class="um-badge um-badge-banned">BANNI</span>' : '<span class="um-badge um-badge-ok">ACTIF</span>'}
-                ${(data.warns || []).length > 0 ? '<span class="um-badge um-badge-warned">' + data.warns.length + ' WARN' + (data.warns.length > 1 ? 'S' : '') + '</span>' : ''}
-            </div>`;
-
-            // --- Infos ---
-            html += `<div class="um-info-grid">
-                <div class="um-info-item"><span class="um-info-label">Premiere connexion</span><span class="um-info-value">${firstSeen}</span></div>
-                <div class="um-info-item"><span class="um-info-label">Derniere connexion</span><span class="um-info-value">${lastLogin}</span></div>
-                <div class="um-info-item"><span class="um-info-label">Presets</span><span class="um-info-value">${data.presetsCount}</span></div>
-                <div class="um-info-item"><span class="um-info-label">Titres generes</span><span class="um-info-value">${data.titleHistory.length} sessions</span></div>
-                ${hidden ? '' : '<div class="um-info-item"><span class="um-info-label">Token valide</span><span class="um-info-value">' + (data.hasToken ? 'Oui' : 'Non') + '</span></div>'}
-            </div>`;
-
-            // --- Ban info si banni ---
-            if (data.banned && data.banInfo) {
-                let dur = 'Permanent';
-                if (!data.banInfo.permanent && data.banInfo.until) {
-                    dur = 'Jusqu\'au ' + new Date(data.banInfo.until).toLocaleString('fr-FR');
-                }
-                html += `<div class="um-ban-info">
-                    <div class="um-ban-header">Informations du ban</div>
-                    ${data.banInfo.reason ? '<p><strong>Raison :</strong> ' + escapeHtml(data.banInfo.reason) + '</p>' : '<p><strong>Raison :</strong> Aucune</p>'}
-                    <p><strong>Duree :</strong> ${escapeHtml(dur)}</p>
-                    <p><strong>Date du ban :</strong> ${data.banInfo.date ? new Date(data.banInfo.date).toLocaleString('fr-FR') : 'Inconnue'}</p>
-                </div>`;
-            }
-
-            // --- Warns ---
-            const warns = data.warns || [];
-            if (warns.length > 0) {
-                html += `<div class="um-warn-info">
-                    <div class="um-warn-header">Avertissements (${warns.length})</div>`;
-                warns.forEach((w, i) => {
-                    const wDate = new Date(w.date).toLocaleString('fr-FR');
-                    const autoBadge = w.auto ? '<span class="um-warn-badge-auto">AUTO</span>' : '<span class="um-warn-badge-manual">MANUEL</span>';
-                    const byInfo = w.by ? `<span class="um-warn-by">par ${escapeHtml(w.by.username)} (<code>${escapeHtml(w.by.id)}</code>)</span>` : '';
-                    html += `<div class="um-warn-item">
-                        <div class="um-warn-item-number">${i + 1}</div>
-                        <div class="um-warn-item-content">
-                            <div class="um-warn-item-top">
-                                ${autoBadge}
-                                <span class="um-warn-date">${wDate}</span>
-                            </div>
-                            <span class="um-warn-reason">${escapeHtml(w.reason)}</span>
-                            ${byInfo}
-                        </div>
-                        ${isAdmin ? `<button class="um-warn-remove" onclick="modalRemoveWarn(${w.id})" title="Retirer cet avertissement">&times;</button>` : ''}
-                    </div>`;
-                });
-                if (isAdmin) {
-                    html += `<button class="btn-admin-action btn-clear-warns" onclick="modalClearWarns()">Supprimer tous les warns</button>`;
-                }
-                html += `</div>`;
-            }
-
-            // --- Actions ---
-            html += '<div class="um-actions">';
-            if (data.banned) {
-                if (isAdmin) {
-                    html += `<button class="btn-admin-action btn-unban" onclick="modalUnban()">Debannir</button>`;
-                } else {
-                    html += `<div class="um-mod-info">Cet utilisateur est banni. Seul un admin peut debannir.</div>`;
-                }
-            } else {
-                html += `<div class="um-ban-form">
-                    <input type="text" id="modalBanReason" placeholder="Raison du ban (optionnel)" class="patchnote-input">
-                    <div class="admin-user-row">
-                        <select id="modalBanDuration" class="patchnote-input admin-select">
-                            <option value="30">30 minutes</option>
-                            <option value="60">1 heure</option>
-                            <option value="360">6 heures</option>
-                            <option value="1440">24 heures</option>
-                            <option value="4320">3 jours</option>
-                            <option value="10080">7 jours</option>
-                            <option value="43200">30 jours</option>
-                            ${isAdmin ? '<option value="permanent">Permanent</option>' : ''}
-                        </select>
-                        <button class="btn-admin-ban" onclick="modalBan()">Bannir</button>
-                    </div>
-                </div>`;
-            }
-            // Warn form
-            html += `<div class="um-warn-form">
-                <input type="text" id="modalWarnReason" placeholder="Raison de l'avertissement" class="patchnote-input">
-                <button class="btn-admin-warn" onclick="modalWarn()">Warn</button>
-            </div>`;
-            if (isAdmin) {
-                html += `<button class="btn-admin-action btn-clear-hist" onclick="modalResetLeaderboardUser()">Reset classement</button>`;
-                html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
-                // Guild join form
-                html += `<div class="um-guild-join" style="margin-top:12px;">
-                    <div class="admin-user-row">
-                        <input type="text" id="modalGuildId" placeholder="ID du serveur Discord" class="patchnote-input" style="flex:1;">
-                        <button class="btn-admin-search" onclick="modalGuildJoin()">Faire rejoindre</button>
-                    </div>
-                    <div id="modalGuildJoinResult" style="margin-top:6px;"></div>
-                </div>`;
-            }
-            html += '</div>';
-
-            // --- Historique ---
-            if (data.titleHistory.length > 0) {
-                html += '<div class="um-history">';
-                html += '<div class="um-history-header">Historique des titres</div>';
-                data.titleHistory.forEach(item => {
-                    html += `<div class="um-history-item">
-                        <div class="um-history-meta">${escapeHtml(item.date || '')}${item.game ? ' &middot; ' + escapeHtml(item.game) : ''}</div>`;
-                    if (item.titles) {
-                        item.titles.forEach(t => {
-                            html += `<div class="um-history-title">${escapeHtml(t)}</div>`;
-                        });
-                    }
-                    html += '</div>';
-                });
-                html += '</div>';
-            }
-
-            body.innerHTML = html;
-        }
-
-        async function modalBan() {
-            if (!currentModalUserId) return;
-            const reason = document.getElementById('modalBanReason').value.trim();
-            const durationVal = document.getElementById('modalBanDuration').value;
-            const body = { userId: currentModalUserId, reason };
-            if (durationVal === 'permanent') { body.permanent = true; } else { body.duration = parseInt(durationVal); }
-
-            try {
-                const res = await fetch('/admin/ban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-                let data; try { data = await res.json(); } catch { data = {}; }
-                if (res.ok) {
-                    showToast('Utilisateur banni.', 'success');
-                    loadAdminBans();
-                    openUserModal(); // Refresh modal
-                } else { showToast(data.error || 'Erreur', 'error'); }
-            } catch { showToast('Erreur de connexion', 'error'); }
-        }
-
-        async function modalUnban() {
-            if (!currentModalUserId) return;
-            try {
-                const res = await fetch('/admin/unban', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId }) });
-                let data; try { data = await res.json(); } catch { data = {}; }
-                if (res.ok) {
-                    showToast('Utilisateur debanni.', 'success');
-                    loadAdminBans();
-                    openUserModal(); // Refresh modal
-                } else { showToast(data.error || 'Erreur', 'error'); }
-            } catch { showToast('Erreur de connexion', 'error'); }
-        }
-
-        async function modalClearHistory() {
-            if (!currentModalUserId) return;
-            showConfirm('Supprimer l\'historique de cet utilisateur ?', async () => {
-                try {
-                    const res = await fetch('/admin/clear-history', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId }) });
-                    let data; try { data = await res.json(); } catch { data = {}; }
-                    if (res.ok) {
-                        showToast('Historique supprime.', 'success');
-                        openUserModal(); // Refresh modal
-                    } else { showToast(data.error || 'Erreur', 'error'); }
-                } catch { showToast('Erreur de connexion', 'error'); }
-            });
-        }
-
-        async function modalWarn() {
-            if (!currentModalUserId) return;
-            const reason = document.getElementById('modalWarnReason').value.trim();
-            if (!reason) return showToast('Une raison est requise pour le warn.', 'warning');
-
-            try {
-                const res = await fetch('/admin/warn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId, reason }) });
-                let data; try { data = await res.json(); } catch { data = {}; }
-                if (res.ok) {
-                    showToast(`Avertissement envoye (${data.total} au total).`, 'success');
-                    openUserModal();
-                } else { showToast(data.error || 'Erreur', 'error'); }
-            } catch { showToast('Erreur de connexion', 'error'); }
-        }
-
-        async function modalRemoveWarn(warnId) {
-            if (!currentModalUserId) return;
-            try {
-                const res = await fetch('/admin/unwarn', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId, warnId }) });
-                let data; try { data = await res.json(); } catch { data = {}; }
-                if (res.ok) {
-                    showToast('Avertissement retire.', 'success');
-                    openUserModal();
-                } else { showToast(data.error || 'Erreur', 'error'); }
-            } catch { showToast('Erreur de connexion', 'error'); }
-        }
-
-        async function modalClearWarns() {
-            if (!currentModalUserId) return;
-            showConfirm('Supprimer tous les avertissements de cet utilisateur ?', async () => {
-                try {
-                    const res = await fetch('/admin/clear-warns', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: currentModalUserId }) });
-                    let data; try { data = await res.json(); } catch { data = {}; }
-                    if (res.ok) {
-                        showToast('Tous les avertissements supprimes.', 'success');
-                        openUserModal();
-                    } else { showToast(data.error || 'Erreur', 'error'); }
-                } catch { showToast('Erreur de connexion', 'error'); }
-            });
-        }
-
-        // --- Guild Join ---
-        async function modalGuildJoin() {
-            if (!currentModalUserId) return;
-            const guildId = document.getElementById('modalGuildId').value.trim();
-            if (!guildId) return showToast('Entre un ID de serveur Discord.', 'warning');
-            const resultDiv = document.getElementById('modalGuildJoinResult');
-            resultDiv.innerHTML = '<span style="color:#a1a1aa;">Envoi en cours...</span>';
-
-            try {
-                const res = await fetch('/admin/guild-join', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentModalUserId, guildId })
-                });
-                let data;
-                try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status}). Redemarrer le serveur.` }; }
-                if (res.ok) {
-                    resultDiv.innerHTML = `<span style="color:#22c55e;">${escapeHtml(data.message || 'OK')}</span>`;
-                } else {
-                    resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur ' + res.status)}</span>`;
-                }
-            } catch (err) {
-                resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur de connexion: ${escapeHtml(err.message)}</span>`;
-            }
-        }
-
-        async function guildJoinAll() {
-            const guildId = document.getElementById('adminGuildId').value.trim();
-            if (!guildId) return showToast('Entre un ID de serveur Discord.', 'warning');
-
-            const resultDiv = document.getElementById('guildJoinResult');
-            showConfirm('Faire rejoindre TOUS les utilisateurs a ce serveur ?', async () => {
-                resultDiv.innerHTML = '<span style="color:#a1a1aa;">Traitement en cours... Cela peut prendre un moment.</span>';
-                try {
-                    const res = await fetch('/admin/guild-join-all', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ guildId })
-                    });
-                    let data;
-                    try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status}). Redemarrer le serveur.` }; }
-                    if (res.ok) {
-                        resultDiv.innerHTML = `<span style="color:#22c55e;">Termine : ${data.added} ajoute(s), ${data.alreadyMember} deja membre(s), ${data.failed} echec(s), ${data.noToken} sans token</span>`;
-                    } else {
-                        resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur ' + res.status)}</span>`;
-                    }
-                } catch (err) {
-                    resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`;
-                }
-            });
-        }
-
-        async function logoutAll() {
-            const resultDiv = document.getElementById('logoutAllResult');
-            showConfirm('Deconnecter TOUS les utilisateurs (sauf vous) ?', async () => {
-                resultDiv.innerHTML = '<span style="color:#a1a1aa;">Deconnexion en cours...</span>';
-                try {
-                    const res = await fetch('/admin/logout-all', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    let data;
-                    try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status})` }; }
-                    if (res.ok) {
-                        resultDiv.innerHTML = `<span style="color:#22c55e;">${data.count} session(s) supprimee(s)</span>`;
-                    } else {
-                        resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur')}</span>`;
-                    }
-                } catch (err) {
-                    resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`;
-                }
-            });
-        }
-
-        // --- Admin: Reset Leaderboard ---
-        async function resetLeaderboard() {
-            const resultDiv = document.getElementById('resetLeaderboardResult');
-            showConfirm('Reinitialiser le classement de TOUS les utilisateurs ?', async () => {
-                resultDiv.innerHTML = '<span style="color:#a1a1aa;">Reinitialisation en cours...</span>';
-                try {
-                    const res = await fetch('/admin/leaderboard/reset', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' }
-                    });
-                    let data;
-                    try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status})` }; }
-                    if (res.ok) {
-                        resultDiv.innerHTML = `<span style="color:#22c55e;">${data.count} utilisateur(s) reinitialise(s)</span>`;
-                    } else {
-                        resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur')}</span>`;
-                    }
-                } catch (err) {
-                    resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`;
-                }
-            });
-        }
-
-        async function modalResetLeaderboardUser() {
-            if (!currentModalUserId) return;
-            showConfirm('Reinitialiser le classement de cet utilisateur ?', async () => {
-                try {
-                    const res = await fetch('/admin/leaderboard/reset-user', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId: currentModalUserId })
-                    });
-                    let data;
-                    try { data = await res.json(); } catch { data = {}; }
-                    if (res.ok) {
-                        showToast(`Classement reinitialise (${data.oldCount} gen. supprimees).`, 'success');
-                        openUserModal();
-                    } else {
-                        showToast(data.error || 'Erreur', 'error');
-                    }
-                } catch { showToast('Erreur de connexion', 'error'); }
-            });
-        }
-
-        // --- Admin: Annonce ---
-        async function publishAnnouncement(enabled) {
-            const message = document.getElementById('announcementInput').value.trim();
-            const type = document.getElementById('announcementType').value;
-            if (enabled && !message) { showToast('Ecris un message.', 'warning'); return; }
-            try {
-                const res = await fetch('/admin/announcement', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message, type, enabled })
-                });
-                if (res.ok) showToast(enabled ? 'Annonce publiee !' : 'Annonce retiree.', 'success');
-            } catch { showToast('Erreur', 'error'); }
-        }
-
-        // --- Admin: Stats ---
-        async function loadAdminStats() {
-            try {
-                const res = await fetch('/admin/stats');
-                if (!res.ok) return;
-                const data = await res.json();
-                const container = document.getElementById('adminStats');
-                let html = '<div class="stats-cards">';
-                html += `<div class="stat-card"><div class="stat-val">${data.totalGenerations}</div><div class="stat-label">Generations</div></div>`;
-                html += `<div class="stat-card"><div class="stat-val">${data.totalTitles}</div><div class="stat-label">Titres</div></div>`;
-                html += `<div class="stat-card"><div class="stat-val">${data.totalUsers}</div><div class="stat-label">Utilisateurs</div></div>`;
-                html += '</div>';
-                container.innerHTML = html;
-            } catch {}
-        }
-
-        // --- Admin: Logs ---
-        async function loadAdminLogs() {
-            try {
-                const res = await fetch('/admin/logs');
-                if (!res.ok) return;
-                const logs = await res.json();
-                const container = document.getElementById('adminLogs');
-                if (logs.length === 0) {
-                    container.innerHTML = '<div style="color:#52525b;font-size:0.85rem;padding:8px;">Aucune activite.</div>';
-                    return;
-                }
-                const actionColors = { ban: '#ef4444', unban: '#10b981', warn: '#f59e0b', unwarn: '#3b82f6', 'clear-warns': '#f59e0b', 'clear-history': '#f59e0b', maintenance: '#8b5cf6', 'logout-all': '#ef4444', 'reset-leaderboard': '#f97316', 'reset-leaderboard-user': '#f97316' };
-                let html = '';
-                logs.slice(0, 100).forEach(log => {
-                    const color = actionColors[log.action] || '#71717a';
-                    const date = new Date(log.date).toLocaleString('fr-FR');
-                    html += `<div class="admin-log-item">
-                        <span class="log-badge" style="background:${color}20;color:${color};border:1px solid ${color}33;">${escapeHtml(log.action)}</span>
-                        <span class="log-details">${escapeHtml(log.performedBy?.username || '?')}${log.targetId ? ' → ' + log.targetId : ''} ${log.details ? '(' + escapeHtml(log.details) + ')' : ''}</span>
-                        <span class="log-date">${date}</span>
-                    </div>`;
-                });
-                container.innerHTML = html;
-            } catch {}
-        }
-
-        async function loadAdminBans() {
-            try {
-                const res = await fetch('/admin/bans');
-                if (!res.ok) return;
-                const bans = await res.json();
-                renderAdminBans(bans);
-            } catch (err) {}
-        }
-
-        async function loadAdminWarns() {
-            try {
-                const res = await fetch('/admin/warns');
-                if (!res.ok) return;
-                const warns = await res.json();
-                renderAdminWarns(warns);
-            } catch (err) {}
-        }
-
-        function renderAdminWarns(warns) {
-            const container = document.getElementById('adminWarnsList');
-            const entries = Object.entries(warns);
-            if (entries.length === 0) { container.innerHTML = ''; return; }
-
-            let html = '<h4 class="admin-subtitle" style="margin-top:12px;">Warns actifs</h4>';
-            entries.forEach(([userId, userWarns]) => {
-                if (userWarns.length === 0) return;
-                const lastWarn = userWarns[userWarns.length - 1];
-                html += `<div class="admin-warn-item" style="cursor:pointer" onclick="document.getElementById('adminUserId').value='${escapeJs(userId)}'; openUserModal();">
-                    <div class="admin-warn-info">
-                        <strong>${escapeHtml(userId)}</strong>
-                        <span class="admin-warn-meta">${userWarns.length} warn${userWarns.length > 1 ? 's' : ''} &middot; Dernier: ${escapeHtml(lastWarn.reason)}</span>
-                    </div>
-                </div>`;
-            });
-            container.innerHTML = html;
-        }
-
-        function renderAdminBans(bans) {
-            const container = document.getElementById('adminBansList');
-            const entries = Object.entries(bans);
-            if (entries.length === 0) { container.innerHTML = ''; return; }
-
-            let html = '<h4 class="admin-subtitle" style="margin-top:12px;">Bans actifs</h4>';
-            entries.forEach(([userId, ban]) => {
-                const isExpired = !ban.permanent && ban.until && new Date(ban.until) <= new Date();
-                if (isExpired) return;
-                let duration = 'Permanent';
-                if (!ban.permanent && ban.until) { duration = 'Jusqu\'au ' + new Date(ban.until).toLocaleString('fr-FR'); }
-
-                html += `<div class="admin-ban-item" style="cursor:pointer" onclick="document.getElementById('adminUserId').value='${escapeJs(userId)}'; openUserModal();">
-                    <div class="admin-ban-info">
-                        <strong>${escapeHtml(userId)}</strong>
-                        <span class="admin-ban-meta">${escapeHtml(duration)}${ban.reason ? ' &middot; ' + escapeHtml(ban.reason) : ''}</span>
-                    </div>
-                </div>`;
-            });
-            container.innerHTML = html;
-        }
+        // [Admin functions moved to admin.html]
 
         // --- User Data Sync ---
         async function loadUserData() {
@@ -1388,6 +685,14 @@
                 }
             }
 
+            if (response.status === 429) {
+                const data429 = await response.json().catch(() => ({}));
+                if (data429.error === 'limit') {
+                    updateCreditsDisplay({ creditsUsed: data429.creditsUsed, creditsMax: data429.creditsMax });
+                    throw new Error(data429.message || 'Limite de generations atteinte pour aujourd\'hui.');
+                }
+            }
+
             if (response.status === 503) {
                 showMaintenance();
                 throw new Error('Le site est en maintenance.');
@@ -1399,6 +704,10 @@
             }
 
             const data = await response.json();
+            // Mettre a jour le compteur de credits
+            if (data.creditsUsed !== undefined) {
+                updateCreditsDisplay({ creditsUsed: data.creditsUsed, creditsMax: data.creditsMax });
+            }
             return data.content;
         }
 
@@ -1406,8 +715,8 @@
         function addPreset() {
             const name = document.getElementById('presetName').value.trim();
             if (!name) return;
-            const preset = {
-                id: Date.now(),
+
+            const fields = {
                 name,
                 mode: currentMode,
                 game: document.getElementById('game').value.trim(),
@@ -1425,10 +734,59 @@
                 customInstructions: document.getElementById('customInstructions').value.trim(),
                 rpCustomInstructions: document.getElementById('rpCustomInstructions').value.trim()
             };
-            presets.push(preset);
+
+            if (editingPresetId !== null) {
+                // Mode edition : mettre a jour le preset existant
+                const idx = presets.findIndex(p => p.id === editingPresetId);
+                if (idx !== -1) {
+                    presets[idx] = { ...presets[idx], ...fields };
+                }
+                cancelEditPreset();
+            } else {
+                presets.push({ id: Date.now(), ...fields });
+                document.getElementById('presetName').value = '';
+            }
+
             saveUserData();
-            document.getElementById('presetName').value = '';
             renderPresets();
+        }
+
+        function togglePresetMenu(event, id) {
+            const card = event.currentTarget.closest('.preset-card');
+            const wasOpen = card.classList.contains('menu-open');
+            closePresetMenus();
+            if (!wasOpen) card.classList.add('menu-open');
+        }
+
+        function closePresetMenus() {
+            document.querySelectorAll('.preset-card.menu-open').forEach(c => c.classList.remove('menu-open'));
+        }
+
+        document.addEventListener('click', closePresetMenus);
+
+        function editPreset(id) {
+            const preset = presets.find(p => p.id === id);
+            if (!preset) return;
+            editingPresetId = id;
+            selectPreset(id);
+            document.getElementById('presetName').value = preset.name;
+            document.getElementById('btnSavePreset').textContent = '✓ Mettre à jour';
+            document.getElementById('btnSavePreset').style.background = 'rgba(16, 185, 129, 0.15)';
+            document.getElementById('btnSavePreset').style.borderColor = 'rgba(16, 185, 129, 0.5)';
+            document.getElementById('btnSavePreset').style.color = '#34d399';
+            document.getElementById('btnCancelEdit').style.display = '';
+            document.getElementById('presetName').focus();
+        }
+
+        function cancelEditPreset() {
+            editingPresetId = null;
+            document.getElementById('presetName').value = '';
+            const btn = document.getElementById('btnSavePreset');
+            btn.textContent = '+ Sauvegarder';
+            btn.style.background = '';
+            btn.style.borderColor = '';
+            btn.style.color = '';
+            document.getElementById('btnCancelEdit').style.display = 'none';
         }
 
         function deletePreset(id) {
@@ -1479,12 +837,16 @@
                 const modeLabel = isRP ? 'RP' : 'Normal';
                 return `
                     <div class="preset-card ${activePreset === p.id ? 'active' : ''}" data-mode="${p.mode || 'normal'}" onclick="selectPreset(${p.id})">
-                        <div class="preset-actions">
-                            <button class="preset-share" onclick="event.stopPropagation(); sharePreset(${p.id})" title="Partager">&#128279;</button>
-                            <button class="preset-delete" onclick="event.stopPropagation(); deletePreset(${p.id})">&#10005;</button>
+                        <div class="preset-info">
+                            <div class="preset-name">${escapeHtml(p.name)}</div>
+                            <div class="preset-style">${escapeHtml(modeLabel)} &middot; ${escapeHtml(subtitle)}</div>
                         </div>
-                        <div class="preset-name">${escapeHtml(p.name)}</div>
-                        <div class="preset-style">${escapeHtml(modeLabel)} &middot; ${escapeHtml(subtitle)}</div>
+                        <button class="preset-menu-btn" onclick="event.stopPropagation(); togglePresetMenu(event, ${p.id})">&#8943;</button>
+                        <div class="preset-dropdown" id="pmenu-${p.id}">
+                            <button class="preset-dropdown-item" onclick="event.stopPropagation(); closePresetMenus(); editPreset(${p.id})">&#9998; Modifier</button>
+                            <button class="preset-dropdown-item" onclick="event.stopPropagation(); closePresetMenus(); sharePreset(${p.id})">&#128279; Partager</button>
+                            <button class="preset-dropdown-item danger" onclick="event.stopPropagation(); closePresetMenus(); deletePreset(${p.id})">&#10005; Supprimer</button>
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -1681,7 +1043,8 @@ EMOJIS :
 Moderation :
 - Jamais de contenu haineux, raciste, discriminatoire, vulgaire
 - Jamais de references a des figures haineuses ou ideologies extremistes
-- Titres adaptes a tout public`;
+- Les references aux ADDICTIONS sont AUTORISEES en RP (drogue, alcool, substances) car c'est un element narratif courant en GTA RP. Exemples acceptes : trafic, deal, came, coke, meth, addiction, rehab, overdose, etc.
+- Titres adaptes a un public RP (maturite thematique toleree pour les addictions)`;
 
                 userPrompt = `Genere ${count} titres de stream Twitch RP.
 
@@ -1768,8 +1131,14 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             if (currentMode === 'rp') {
                 meta.character = document.getElementById('rpCharacter').value.trim();
                 meta.mood = document.getElementById('rpMood').value;
+                meta.rpContext = document.getElementById('rpContext').value.trim();
+                meta.rpServer = document.getElementById('rpServer').value.trim();
+                meta.rpEpisode = document.getElementById('rpEpisode').value.trim();
+                meta.rpInstructions = document.getElementById('rpCustomInstructions').value.trim();
             } else {
                 meta.mood = document.getElementById('mood').value;
+                meta.context = document.getElementById('context').value.trim();
+                meta.customInstructions = document.getElementById('customInstructions').value.trim();
             }
 
             isGenerating = true;
@@ -1852,8 +1221,34 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             const container = document.getElementById('titlesHistory');
             if (titleHistory.length === 0) { container.innerHTML = ''; return; }
 
+            const searchEl = document.getElementById('historySearch');
+            const searchVal = searchEl ? searchEl.value : '';
+            const query = searchVal.toLowerCase().trim();
+
+            let filtered = titleHistory;
+            if (query) {
+                filtered = titleHistory.filter(item => {
+                    const fields = [
+                        (item.titles || []).join(' '),
+                        item.game || '',
+                        item.rpServer || '',
+                        item.rpCharacter || '',
+                        item.mood || '',
+                        item.rpMood || '',
+                        item.date || ''
+                    ].join(' ').toLowerCase();
+                    return fields.includes(query);
+                });
+            }
+
             let html = `<h3>Historique <span class="history-actions"><button class="btn-export" onclick="exportTitles('history')">Exporter</button><button class="btn-clear" onclick="clearHistory()">Effacer</button></span></h3>`;
-            titleHistory.forEach(item => {
+            html += `<input type="text" id="historySearch" class="history-search" placeholder="Rechercher dans l'historique..." value="${escapeHtml(searchVal)}" oninput="renderHistory()">`;
+
+            if (query && filtered.length === 0) {
+                html += '<p style="color:#52525b;font-size:0.88rem;padding:12px 0;font-style:italic;">Aucun resultat pour cette recherche.</p>';
+            }
+
+            filtered.forEach(item => {
                 html += '<div class="history-item">';
                 html += `<div class="meta">${escapeHtml(item.date)}${item.game ? ' &middot; ' + escapeHtml(item.game) : ''}</div>`;
                 const params = [];
@@ -1871,6 +1266,13 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                 html += '</div>';
             });
             container.innerHTML = html;
+
+            // Restore focus and cursor position
+            const newSearchEl = document.getElementById('historySearch');
+            if (newSearchEl && searchVal) {
+                newSearchEl.focus();
+                newSearchEl.setSelectionRange(searchVal.length, searchVal.length);
+            }
         }
 
         function clearHistory() {
@@ -1954,29 +1356,6 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             a.click();
             URL.revokeObjectURL(url);
             showToast('Export telecharge !', 'success', 2000);
-        }
-
-        // --- Annonce ---
-        async function loadAnnouncement() {
-            try {
-                const res = await fetch('/api/announcement');
-                if (res.ok) {
-                    const data = await res.json();
-                    if (data.message && !sessionStorage.getItem('announcementDismissed')) {
-                        const banner = document.getElementById('announcementBanner');
-                        document.getElementById('announcementText').textContent = data.message;
-                        const icons = { info: '&#8505;', warning: '&#9888;', success: '&#10003;' };
-                        document.getElementById('announcementIcon').innerHTML = icons[data.type] || icons.info;
-                        banner.className = `announcement-banner announcement-${data.type || 'info'}`;
-                        banner.style.display = 'flex';
-                    }
-                }
-            } catch {}
-        }
-
-        function dismissAnnouncement() {
-            document.getElementById('announcementBanner').style.display = 'none';
-            sessionStorage.setItem('announcementDismissed', '1');
         }
 
         // --- Leaderboard ---
@@ -2073,6 +1452,22 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             return html;
         }
 
+        function updateCreditsDisplay(user) {
+            const el = document.getElementById('creditsCounter');
+            if (user.unlimitedGenerations) {
+                el.innerHTML = '&#8734;';
+                el.className = 'credits-counter credits-unlimited';
+                el.title = 'Generations illimitees';
+                el.style.display = '';
+            } else {
+                const remaining = (user.creditsMax || 20) - (user.creditsUsed || 0);
+                el.textContent = remaining + '/' + (user.creditsMax || 20);
+                el.className = 'credits-counter' + (remaining <= 5 ? ' credits-low' : '') + (remaining <= 0 ? ' credits-empty' : '');
+                el.title = remaining + ' generations restantes aujourd\'hui';
+                el.style.display = '';
+            }
+        }
+
         // --- Utils ---
         function copyText(btn, text) {
             navigator.clipboard.writeText(text).then(() => {
@@ -2111,43 +1506,13 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             eventSource.addEventListener('maintenance', (e) => {
                 const data = JSON.parse(e.data);
                 if (data.enabled) {
-                    // Maintenance activee
-                    if (currentUser && currentUser.isStaff) {
-                        // Staff : juste mettre a jour le toggle si admin
-                        if (currentUser.isAdmin) {
-                            document.getElementById('maintenanceToggle').checked = true;
-                            updateMaintenanceLabel(true);
-                        }
-                    } else {
-                        // Non-staff ou non authentifie : afficher ecran maintenance
+                    if (!(currentUser && currentUser.isStaff)) {
                         showMaintenance();
                     }
                 } else {
-                    // Maintenance desactivee
-                    if (currentUser && currentUser.isStaff) {
-                        if (currentUser.isAdmin) {
-                            document.getElementById('maintenanceToggle').checked = false;
-                            updateMaintenanceLabel(false);
-                        }
-                    } else {
-                        // Re-verifier l'auth pour restaurer l'etat correct
+                    if (!(currentUser && currentUser.isStaff)) {
                         checkAuth();
                     }
-                }
-            });
-
-            eventSource.addEventListener('announcement', (e) => {
-                const ann = JSON.parse(e.data);
-                if (ann.message) {
-                    sessionStorage.removeItem('announcementDismissed');
-                    document.getElementById('announcementText').textContent = ann.message;
-                    const icons = { info: '&#8505;', warning: '&#9888;', success: '&#10003;' };
-                    document.getElementById('announcementIcon').innerHTML = icons[ann.type] || icons.info;
-                    const banner = document.getElementById('announcementBanner');
-                    banner.className = `announcement-banner announcement-${ann.type || 'info'}`;
-                    banner.style.display = 'flex';
-                } else {
-                    document.getElementById('announcementBanner').style.display = 'none';
                 }
             });
 
@@ -2155,9 +1520,7 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                 const note = JSON.parse(e.data);
                 patchnotesList.unshift(note);
                 updatePatchnoteBadge();
-                if (currentUser && currentUser.isAdmin) {
-                    renderAdminPatchnotes();
-                } else if (currentUser) {
+                if (currentUser) {
                     openPatchnotes();
                 }
             });
@@ -2177,7 +1540,6 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                 if (res.ok) {
                     patchnotesList = await res.json();
                     updatePatchnoteBadge();
-                    if (currentUser && currentUser.isAdmin) renderAdminPatchnotes();
                 }
             } catch (err) {
                 console.error('Erreur chargement patchnotes:', err);
@@ -2264,137 +1626,6 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             localStorage.setItem('patchnoteCollapsed', JSON.stringify(savedState));
         }
 
-        // --- Admin Patchnotes ---
-        function togglePatchnoteTag(btn) {
-            btn.classList.toggle('active');
-            const tag = btn.dataset.tag;
-            if (btn.classList.contains('active')) {
-                if (!selectedTags.includes(tag)) selectedTags.push(tag);
-            } else {
-                selectedTags = selectedTags.filter(t => t !== tag);
-            }
-            renderSelectedTags();
-        }
-
-        function addCustomTag() {
-            const input = document.getElementById('customTagInput');
-            const tag = input.value.trim();
-            if (!tag || selectedTags.includes(tag)) return;
-            selectedTags.push(tag);
-            input.value = '';
-            renderSelectedTags();
-        }
-
-        function removeTag(tag) {
-            selectedTags = selectedTags.filter(t => t !== tag);
-            document.querySelectorAll('.tag-toggle').forEach(btn => {
-                if (btn.dataset.tag === tag) btn.classList.remove('active');
-            });
-            renderSelectedTags();
-        }
-
-        function renderSelectedTags() {
-            const container = document.getElementById('selectedTagsList');
-            if (selectedTags.length === 0) { container.innerHTML = ''; return; }
-            container.innerHTML = selectedTags.map(t =>
-                `<span class="selected-tag tag-${getTagClass(t)}">${escapeHtml(t)} <button onclick="removeTag('${escapeJs(t)}')">&times;</button></span>`
-            ).join('');
-        }
-
-        function getTagClass(tag) {
-            const map = { 'Nouveau': 'nouveau', 'Fix': 'fix', 'Amelioration': 'amelioration', 'Important': 'important' };
-            return map[tag] || 'custom';
-        }
-
-        function toggleSchedule() {
-            const input = document.getElementById('scheduleDateTime');
-            input.style.display = document.getElementById('scheduleToggle').checked ? 'block' : 'none';
-        }
-
-        function resetPatchnoteForm() {
-            document.getElementById('patchnoteTitle').value = '';
-            document.getElementById('patchnoteContent').value = '';
-            selectedTags = [];
-            document.querySelectorAll('.tag-toggle').forEach(b => b.classList.remove('active'));
-            document.getElementById('selectedTagsList').innerHTML = '';
-            document.getElementById('scheduleToggle').checked = false;
-            document.getElementById('scheduleDateTime').style.display = 'none';
-            document.getElementById('scheduleDateTime').value = '';
-            document.getElementById('customTagInput').value = '';
-        }
-
-        async function publishPatchnote() {
-            const title = document.getElementById('patchnoteTitle').value.trim();
-            const content = document.getElementById('patchnoteContent').value.trim();
-            if (!title || !content) return;
-
-            const body = {
-                title,
-                content,
-                tags: selectedTags
-            };
-
-            if (document.getElementById('scheduleToggle').checked) {
-                const dt = document.getElementById('scheduleDateTime').value;
-                if (dt) body.scheduledAt = dt;
-            }
-
-            try {
-                const res = await fetch('/admin/patchnotes', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                if (res.ok) {
-                    resetPatchnoteForm();
-                    await loadPatchnotes();
-                }
-            } catch (err) {
-                console.error('Erreur publication patchnote:', err);
-            }
-        }
-
-        async function deletePatchnote(id) {
-            try {
-                const res = await fetch(`/admin/patchnotes/${id}`, { method: 'DELETE' });
-                if (res.ok) {
-                    patchnotesList = patchnotesList.filter(p => p.id !== id);
-                    updatePatchnoteBadge();
-                    renderAdminPatchnotes();
-                }
-            } catch (err) {
-                console.error('Erreur suppression patchnote:', err);
-            }
-        }
-
-        function renderAdminPatchnotes() {
-            const container = document.getElementById('adminPatchnotesList');
-            if (!container) return;
-            if (patchnotesList.length === 0) {
-                container.innerHTML = '';
-                return;
-            }
-            container.innerHTML = '<h4 class="admin-subtitle">Patchnotes</h4>' +
-                patchnotesList.map(p => {
-                    const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-                    const tags = (p.tags || []).map(t => `<span class="tag-badge tag-${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
-                    const scheduled = p.published === false ? '<span class="scheduled-badge">Programmee</span>' : '';
-                    return `<div class="admin-patchnote-item">
-                        <div class="admin-patchnote-info">
-                            <div class="admin-patchnote-title-row">
-                                <strong>${escapeHtml(p.title)}</strong>
-                                ${scheduled}
-                            </div>
-                            <div class="admin-patchnote-meta">
-                                <span class="admin-patchnote-date">${date}</span>
-                                ${tags ? '<span class="admin-patchnote-tags">' + tags + '</span>' : ''}
-                            </div>
-                        </div>
-                        <button class="btn-delete-patchnote" onclick="deletePatchnote(${p.id})">&#10005;</button>
-                    </div>`;
-                }).join('');
-        }
-
         // --- CGU Modal ---
         function openCGU() {
             document.getElementById('cguModal').classList.add('visible');
@@ -2404,6 +1635,11 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
         function closeCGU() {
             document.getElementById('cguModal').classList.remove('visible');
             document.body.style.overflow = '';
+        }
+
+        function getTagClass(tag) {
+            const map = { 'Nouveau': 'nouveau', 'Fix': 'fix', 'Amelioration': 'amelioration', 'Important': 'important' };
+            return map[tag] || 'custom';
         }
 
         // --- Custom Select Dropdowns ---
