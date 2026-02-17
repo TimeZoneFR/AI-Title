@@ -20,6 +20,7 @@ const {
     SESSION_SECRET,
     DISCORD_WEBHOOK_URL,
     MODERATOR_ROLE_ID,
+    MEMBER_ROLE_ID,
     PARTNER_ROLE_ID,
     DISCORD_BOT_TOKEN,
     DISCORD_STATUS_CHANNEL_ID
@@ -27,6 +28,7 @@ const {
 
 const ADMIN_DISCORD_ID = '1148249755458228286';
 const DAILY_TITLE_LIMIT = 20;
+const MEMBER_DAILY_LIMIT = 30;
 
 const MAINTENANCE_FILE = path.join(__dirname, 'maintenance.json');
 
@@ -77,7 +79,7 @@ function saveStats(data) {
 let stats = loadStats();
 
 // --- Discord Bot ---
-const discordBot = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages] });
+const discordBot = new Client({ intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.GuildMembers] });
 let botReady = false;
 
 async function sendStatusEmbed(status) {
@@ -448,6 +450,37 @@ function hasUnlimitedGenerations(user) {
     return isStaff(user) || isPartner(user);
 }
 
+function isMember(user) {
+    if (!user) return false;
+    return MEMBER_ROLE_ID && user.roles && user.roles.includes(MEMBER_ROLE_ID);
+}
+
+function getUserDailyLimit(user) {
+    if (hasUnlimitedGenerations(user)) return Infinity;
+    if (isMember(user)) return MEMBER_DAILY_LIMIT;
+    return DAILY_TITLE_LIMIT;
+}
+
+// Recupere les roles d'un membre via le Bot token (fiable, pas d'expiration)
+async function fetchMemberRoles(userId) {
+    if (!REQUIRED_GUILD_ID || !DISCORD_BOT_TOKEN) return null;
+    try {
+        const memberRes = await fetch(
+            `https://discord.com/api/guilds/${REQUIRED_GUILD_ID}/members/${userId}`,
+            { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }
+        );
+        if (memberRes.ok) {
+            const member = await memberRes.json();
+            return member.roles || [];
+        } else {
+            console.error(`[ROLES] Erreur ${memberRes.status} pour ${userId}`);
+        }
+    } catch (err) {
+        console.error(`[ROLES] Fetch failed pour ${userId}:`, err.message);
+    }
+    return null;
+}
+
 function getUserDailyCredits(userId) {
     const filePath = getUserDataPath(userId);
     try {
@@ -572,22 +605,9 @@ app.get('/auth/discord/callback', async (req, res) => {
             return res.redirect('/?error=banned');
         }
 
-        // Try to fetch guild roles (optional - user may not be in the guild)
-        let roles = [];
-        if (REQUIRED_GUILD_ID) {
-            try {
-                const memberRes = await fetch(
-                    `https://discord.com/api/users/@me/guilds/${REQUIRED_GUILD_ID}/member`,
-                    { headers: { Authorization: `Bearer ${accessToken}` } }
-                );
-                if (memberRes.ok) {
-                    const member = await memberRes.json();
-                    roles = member.roles || [];
-                }
-            } catch (err) {
-                console.error('Erreur recuperation roles (optionnel):', err.message);
-            }
-        }
+        // Fetch guild roles via Bot token (fiable)
+        const fetchedRoles = await fetchMemberRoles(user.id);
+        const roles = fetchedRoles || [];
 
         // Create session with extended user data
         req.session.user = {
@@ -635,28 +655,15 @@ app.get('/auth/discord/callback', async (req, res) => {
 // Get current user
 app.get('/auth/me', async (req, res) => {
     if (req.session && req.session.user) {
-        // Try to refresh roles from guild (optional - user may not be in the guild)
-        if (req.session.user.accessToken && REQUIRED_GUILD_ID) {
-            try {
-                const memberRes = await fetch(
-                    `https://discord.com/api/users/@me/guilds/${REQUIRED_GUILD_ID}/member`,
-                    { headers: { Authorization: `Bearer ${req.session.user.accessToken}` } }
-                );
-                if (memberRes.ok) {
-                    const member = await memberRes.json();
-                    req.session.user.roles = member.roles || [];
-                }
-            } catch (err) {
-                // User may not be in guild - that's fine
-            }
-        }
-
-        console.log(`[DEBUG] User ${req.session.user.username} roles:`, req.session.user.roles, '| PARTNER_ROLE_ID:', PARTNER_ROLE_ID, '| isPartner:', isPartner(req.session.user));
+        // Refresh roles via Bot token
+        const freshRoles = await fetchMemberRoles(req.session.user.id);
+        if (freshRoles) req.session.user.roles = freshRoles;
 
         const banned = isUserBanned(req.session.user.id);
         const banInfo = banned ? loadBans()[req.session.user.id] : null;
         const userWarns = getUserWarns(req.session.user.id);
         const isModerator = MODERATOR_ROLE_ID && req.session.user.roles && req.session.user.roles.includes(MODERATOR_ROLE_ID);
+        const dailyLimit = getUserDailyLimit(req.session.user);
         const { accessToken, ...safeUser } = req.session.user;
         return res.json({
             ...safeUser,
@@ -664,10 +671,10 @@ app.get('/auth/me', async (req, res) => {
             isModerator: !!isModerator,
             isStaff: req.session.user.id === ADMIN_DISCORD_ID || !!isModerator,
             isPartner: !!isPartner(req.session.user),
-            _debugRoles: req.session.user.roles || [],
+            isMember: !!isMember(req.session.user),
             unlimitedGenerations: hasUnlimitedGenerations(req.session.user),
             creditsUsed: hasUnlimitedGenerations(req.session.user) ? 0 : getUserDailyCredits(req.session.user.id),
-            creditsMax: DAILY_TITLE_LIMIT,
+            creditsMax: dailyLimit,
             maintenance: maintenanceMode,
             banned,
             banInfo,
@@ -893,7 +900,7 @@ app.get('/admin/user/:id', requireStaff, (req, res) => {
         warns: userWarns,
         hasToken: !!userData?.accessToken,
         creditsUsed,
-        creditsMax: DAILY_TITLE_LIMIT
+        creditsMax: DAILY_TITLE_LIMIT // valeur par defaut pour l'admin panel
     });
 });
 
@@ -1320,15 +1327,20 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         return res.status(400).json({ error: 'Parametres manquants' });
     }
 
+    // Refresh roles avant check quota
+    const freshRoles = await fetchMemberRoles(req.session.user.id);
+    if (freshRoles) req.session.user.roles = freshRoles;
+
     // Check quota (staff + partenaires = illimite)
+    const dailyLimit = getUserDailyLimit(req.session.user);
     if (!hasUnlimitedGenerations(req.session.user)) {
         const used = getUserDailyCredits(req.session.user.id);
-        if (used >= DAILY_TITLE_LIMIT) {
+        if (used >= dailyLimit) {
             return res.status(429).json({
                 error: 'limit',
-                message: `Tu as atteint ta limite de ${DAILY_TITLE_LIMIT} titres pour aujourd'hui. Reviens demain !`,
+                message: `Tu as atteint ta limite de ${dailyLimit} titres pour aujourd'hui. Reviens demain !`,
                 creditsUsed: used,
-                creditsMax: DAILY_TITLE_LIMIT
+                creditsMax: dailyLimit
             });
         }
     }
@@ -1431,7 +1443,7 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
         const resData = { content };
         if (creditsUsed !== null) {
             resData.creditsUsed = creditsUsed;
-            resData.creditsMax = DAILY_TITLE_LIMIT;
+            resData.creditsMax = getUserDailyLimit(req.session.user);
         }
         res.json(resData);
 
@@ -1546,74 +1558,6 @@ app.get('/api/titles/shared/:code', requireAuth, (req, res) => {
     res.json(entry);
 });
 
-// --- Leaderboard ---
-app.get('/api/leaderboard', requireAuth, (req, res) => {
-    const udDir = path.join(__dirname, 'userdata');
-    const leaders = [];
-    try {
-        if (fs.existsSync(udDir)) {
-            const files = fs.readdirSync(udDir).filter(f => f.endsWith('.json'));
-            files.forEach(file => {
-                try {
-                    const data = JSON.parse(fs.readFileSync(path.join(udDir, file), 'utf8'));
-                    const count = (data.titleHistory || []).length;
-                    if (count > 0) {
-                        leaders.push({
-                            username: data.profile?.username || file.replace('.json', ''),
-                            avatar: data.profile?.avatar || null,
-                            userId: file.replace('.json', ''),
-                            count
-                        });
-                    }
-                } catch {}
-            });
-        }
-    } catch {}
-    leaders.sort((a, b) => b.count - a.count);
-    res.json(leaders.slice(0, 50));
-});
-
-// --- Admin: Reset Leaderboard ---
-app.post('/admin/leaderboard/reset', requireAdmin, (req, res) => {
-    const udDir = path.join(__dirname, 'userdata');
-    let count = 0;
-    try {
-        if (fs.existsSync(udDir)) {
-            const files = fs.readdirSync(udDir).filter(f => f.endsWith('.json'));
-            files.forEach(file => {
-                try {
-                    const filePath = path.join(udDir, file);
-                    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                    if (data.titleHistory && data.titleHistory.length > 0) {
-                        data.titleHistory = [];
-                        fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
-                        count++;
-                    }
-                } catch {}
-            });
-        }
-    } catch {}
-    addLog('reset-leaderboard', req.session.user, null, `${count} utilisateur(s) reinitialise(s)`);
-    res.json({ ok: true, count });
-});
-
-app.post('/admin/leaderboard/reset-user', requireAdmin, (req, res) => {
-    const { userId } = req.body;
-    if (!userId || !userId.trim()) {
-        return res.status(400).json({ error: 'ID utilisateur requis' });
-    }
-    const filePath = path.join(__dirname, 'userdata', `${userId.trim()}.json`);
-    if (fs.existsSync(filePath)) {
-        const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-        const oldCount = (data.titleHistory || []).length;
-        data.titleHistory = [];
-        fs.writeFileSync(filePath, JSON.stringify(data), 'utf8');
-        addLog('reset-leaderboard-user', req.session.user, userId.trim(), `${oldCount} generation(s) supprimee(s)`);
-        return res.json({ ok: true, oldCount });
-    }
-    return res.status(404).json({ error: 'Utilisateur non trouve' });
-});
-
 // --- Scheduler: auto-publish scheduled patchnotes ---
 setInterval(() => {
     const patchnotes = loadPatchnotes();
@@ -1631,8 +1575,36 @@ setInterval(() => {
 }, 30000);
 
 // --- Start ---
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
     console.log(`Serveur demarre sur http://localhost:${PORT}`);
+
+    // Diagnostic au demarrage
+    console.log(`[CONFIG] REQUIRED_GUILD_ID: ${REQUIRED_GUILD_ID || 'NON DEFINI'}`);
+    console.log(`[CONFIG] MEMBER_ROLE_ID: ${MEMBER_ROLE_ID || 'NON DEFINI'}`);
+    console.log(`[CONFIG] PARTNER_ROLE_ID: ${PARTNER_ROLE_ID || 'NON DEFINI'}`);
+    console.log(`[CONFIG] MODERATOR_ROLE_ID: ${MODERATOR_ROLE_ID || 'NON DEFINI'}`);
+    console.log(`[CONFIG] DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN ? 'present (' + DISCORD_BOT_TOKEN.substring(0, 10) + '...)' : 'NON DEFINI'}`);
+
+    // Test fetch membre avec le Bot token
+    if (DISCORD_BOT_TOKEN && REQUIRED_GUILD_ID) {
+        try {
+            const testRes = await fetch(
+                `https://discord.com/api/guilds/${REQUIRED_GUILD_ID}/members/${ADMIN_DISCORD_ID}`,
+                { headers: { Authorization: `Bot ${DISCORD_BOT_TOKEN}` } }
+            );
+            if (testRes.ok) {
+                const member = await testRes.json();
+                console.log(`[TEST] Fetch membre OK ! Roles de l'admin: ${JSON.stringify(member.roles)}`);
+            } else {
+                const errText = await testRes.text();
+                console.error(`[TEST] ECHEC fetch membre ! Status: ${testRes.status} - ${errText}`);
+            }
+        } catch (err) {
+            console.error(`[TEST] ECHEC connexion Discord API:`, err.message);
+        }
+    } else {
+        console.error('[TEST] Impossible de tester: BOT_TOKEN ou GUILD_ID manquant');
+    }
 
     // Connexion du bot Discord
     if (DISCORD_BOT_TOKEN && DISCORD_STATUS_CHANNEL_ID) {

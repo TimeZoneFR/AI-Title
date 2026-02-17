@@ -114,18 +114,6 @@
                 </div>
             </div>
 
-            <!-- Leaderboard (admin only) -->
-            <div class="admin-section admin-only" id="leaderboardSection">
-                <h3 class="admin-section-title">Classement</h3>
-                <div class="admin-guild-section">
-                    <div class="admin-user-row">
-                        <span style="flex:1;color:#b0b0b0;font-size:0.95em;">Reinitialiser le classement de tous les utilisateurs</span>
-                        <button class="btn-logout-all" onclick="resetLeaderboard()">Reset classement</button>
-                    </div>
-                    <div id="resetLeaderboardResult" style="margin-top:8px;"></div>
-                </div>
-            </div>
-
             <!-- Stats (admin only) -->
             <div class="admin-section admin-only" id="statsSection">
                 <h3 class="admin-section-title">Statistiques</h3>
@@ -472,7 +460,6 @@
             </div>`;
             if (isAdmin) {
                 html += `<button class="btn-admin-action btn-clear-hist" onclick="modalResetCredits()">Reset credits</button>`;
-                html += `<button class="btn-admin-action btn-clear-hist" onclick="modalResetLeaderboardUser()">Reset classement</button>`;
                 html += `<button class="btn-admin-action btn-clear-hist" onclick="modalClearHistory()">Clear historique</button>`;
                 html += `<div class="um-guild-join" style="margin-top:12px;">
                     <div class="admin-user-row">
@@ -601,21 +588,6 @@
             } catch (err) { resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`; }
         }
 
-        async function modalResetLeaderboardUser() {
-            if (!currentModalUserId) return;
-            showConfirm('Reinitialiser le classement de cet utilisateur ?', async () => {
-                try {
-                    const res = await fetch('/admin/leaderboard/reset-user', {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId: currentModalUserId })
-                    });
-                    let data; try { data = await res.json(); } catch { data = {}; }
-                    if (res.ok) { showToast(`Classement reinitialise (${data.oldCount} gen. supprimees).`, 'success'); openUserModal(); }
-                    else { showToast(data.error || 'Erreur', 'error'); }
-                } catch { showToast('Erreur de connexion', 'error'); }
-            });
-        }
-
         // --- Guild Join All ---
         async function guildJoinAll() {
             const guildId = document.getElementById('adminGuildId').value.trim();
@@ -650,20 +622,6 @@
             });
         }
 
-        // --- Reset Leaderboard ---
-        async function resetLeaderboard() {
-            const resultDiv = document.getElementById('resetLeaderboardResult');
-            showConfirm('Reinitialiser le classement de TOUS les utilisateurs ?', async () => {
-                resultDiv.innerHTML = '<span style="color:#a1a1aa;">Reinitialisation en cours...</span>';
-                try {
-                    const res = await fetch('/admin/leaderboard/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-                    let data; try { data = await res.json(); } catch { data = { error: `Erreur serveur (${res.status})` }; }
-                    if (res.ok) { resultDiv.innerHTML = `<span style="color:#22c55e;">${data.count} utilisateur(s) reinitialise(s)</span>`; }
-                    else { resultDiv.innerHTML = `<span style="color:#ef4444;">${escapeHtml(data.error || 'Erreur')}</span>`; }
-                } catch (err) { resultDiv.innerHTML = `<span style="color:#ef4444;">Erreur: ${escapeHtml(err.message)}</span>`; }
-            });
-        }
-
         // --- Admin Stats ---
         async function loadAdminStats() {
             try {
@@ -688,7 +646,7 @@
                 const logs = await res.json();
                 const container = document.getElementById('adminLogs');
                 if (logs.length === 0) { container.innerHTML = '<div style="color:#52525b;font-size:0.85rem;padding:8px;">Aucune activite.</div>'; return; }
-                const actionColors = { ban: '#ef4444', unban: '#10b981', warn: '#f59e0b', unwarn: '#3b82f6', 'clear-warns': '#f59e0b', 'clear-history': '#f59e0b', 'reset-credits': '#34d399', maintenance: '#8b5cf6', 'logout-all': '#ef4444', 'reset-leaderboard': '#f97316', 'reset-leaderboard-user': '#f97316' };
+                const actionColors = { ban: '#ef4444', unban: '#10b981', warn: '#f59e0b', unwarn: '#3b82f6', 'clear-warns': '#f59e0b', 'clear-history': '#f59e0b', 'reset-credits': '#34d399', maintenance: '#8b5cf6', 'logout-all': '#ef4444' };
                 let html = '';
                 logs.slice(0, 100).forEach(log => {
                     const color = actionColors[log.action] || '#71717a';

@@ -70,7 +70,6 @@
                     <span class="user-role-badge" id="userRoleBadge" style="display:none;"></span>
                 </div>
                 <span class="credits-counter" id="creditsCounter" style="display:none;"></span>
-                <button class="btn-leaderboard" onclick="openLeaderboard()" title="Classement">&#9819;</button>
                 <button class="btn-patchnotes" onclick="openPatchnotes()">
                     Patchnotes
                     <span class="patchnote-badge" id="patchnoteBadge"></span>
@@ -256,17 +255,6 @@
         </footer>
     </div>
 
-    <!-- Modal Leaderboard -->
-    <div class="modal-overlay" id="leaderboardModal" onclick="if(event.target===this) closeLeaderboard()">
-        <div class="modal" style="max-width:520px;">
-            <div class="modal-header">
-                <h2>&#9819; Classement</h2>
-                <button class="modal-close" onclick="closeLeaderboard()">&times;</button>
-            </div>
-            <div class="modal-body" id="leaderboardContent"></div>
-        </div>
-    </div>
-
     <!-- Modal Patchnotes -->
     <div class="modal-overlay" id="patchnotesModal" onclick="if(event.target===this) closePatchnotes()">
         <div class="modal">
@@ -388,7 +376,7 @@
                     }
                 }
                 if (e.key === 'Escape') {
-                    closePatchnotes(); closeCGU(); closeLeaderboard();
+                    closePatchnotes(); closeCGU();
                 }
                 if (e.ctrlKey && e.key === 'c') {
                     const hovered = document.querySelector('.result-item.hovered');
@@ -484,16 +472,20 @@
             if (user.isAdmin) {
                 roleBadge.textContent = 'Admin';
                 roleBadge.className = 'user-role-badge role-admin';
-                roleBadge.style.display = '';
             } else if (user.isModerator) {
                 roleBadge.textContent = 'Mod';
                 roleBadge.className = 'user-role-badge role-mod';
-                roleBadge.style.display = '';
             } else if (user.isPartner) {
                 roleBadge.textContent = 'Partenaire';
                 roleBadge.className = 'user-role-badge role-partner';
-                roleBadge.style.display = '';
+            } else if (user.isMember) {
+                roleBadge.textContent = 'Membre';
+                roleBadge.className = 'user-role-badge role-member';
+            } else {
+                roleBadge.textContent = 'Visiteur';
+                roleBadge.className = 'user-role-badge role-visitor';
             }
+            roleBadge.style.display = '';
 
             // Credits counter
             updateCreditsDisplay(user);
@@ -1356,77 +1348,6 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             a.click();
             URL.revokeObjectURL(url);
             showToast('Export telecharge !', 'success', 2000);
-        }
-
-        // --- Leaderboard ---
-        async function openLeaderboard() {
-            document.getElementById('leaderboardModal').classList.add('visible');
-            document.body.classList.add('no-scroll');
-            const container = document.getElementById('leaderboardContent');
-            container.innerHTML = '<div class="loading"><div class="spinner"></div><div>Chargement...</div></div>';
-            try {
-                const res = await fetch('/api/leaderboard');
-                if (!res.ok) throw new Error();
-                const leaders = await res.json();
-                if (leaders.length === 0) {
-                    container.innerHTML = '<div style="text-align:center;color:#52525b;padding:20px;">Aucun participant pour le moment.</div>';
-                    return;
-                }
-                const max = leaders[0].count;
-                let html = '';
-
-                // Podium top 3
-                if (leaders.length >= 3) {
-                    const podiumOrder = [leaders[1], leaders[0], leaders[2]];
-                    const podiumClasses = ['lb-podium-2nd', 'lb-podium-1st', 'lb-podium-3rd'];
-                    const podiumMedals = ['&#129352;', '&#129351;', '&#129353;'];
-                    const podiumLabels = ['2e', '1er', '3e'];
-                    html += '<div class="lb-podium">';
-                    podiumOrder.forEach((l, pi) => {
-                        const avatarUrl = l.avatar ? `https://cdn.discordapp.com/avatars/${l.userId}/${l.avatar}.png?size=128` : `https://cdn.discordapp.com/embed/avatars/0.png`;
-                        const isCurrentUser = currentUser && l.userId === currentUser.id;
-                        html += `<div class="lb-podium-item ${podiumClasses[pi]}${isCurrentUser ? ' lb-me' : ''}">
-                            <div class="lb-podium-medal">${podiumMedals[pi]}</div>
-                            <div class="lb-podium-avatar-wrap">
-                                <img class="lb-podium-avatar" src="${avatarUrl}" alt="">
-                            </div>
-                            <div class="lb-podium-name">${escapeHtml(l.username)}</div>
-                            <div class="lb-podium-count">${l.count} <span>gen.</span></div>
-                            <div class="lb-podium-pedestal">
-                                <span class="lb-podium-label">${podiumLabels[pi]}</span>
-                            </div>
-                        </div>`;
-                    });
-                    html += '</div>';
-                }
-
-                // Liste des suivants (ou tous si < 3)
-                const startIdx = leaders.length >= 3 ? 3 : 0;
-                if (startIdx < leaders.length) {
-                    html += '<div class="leaderboard-list">';
-                    for (let i = startIdx; i < leaders.length; i++) {
-                        const l = leaders[i];
-                        const pct = max > 0 ? (l.count / max * 100).toFixed(0) : 0;
-                        const isCurrentUser = currentUser && l.userId === currentUser.id;
-                        const avatarUrl = l.avatar ? `https://cdn.discordapp.com/avatars/${l.userId}/${l.avatar}.png?size=64` : `https://cdn.discordapp.com/embed/avatars/0.png`;
-                        html += `<div class="lb-entry${isCurrentUser ? ' lb-me' : ''}">
-                            <span class="lb-rank">#${i + 1}</span>
-                            <img class="lb-avatar" src="${avatarUrl}" alt="">
-                            <span class="lb-name">${escapeHtml(l.username)}</span>
-                            <div class="lb-bar-bg"><div class="lb-bar" style="width:${pct}%"></div></div>
-                            <span class="lb-count">${l.count}</span>
-                        </div>`;
-                    }
-                    html += '</div>';
-                }
-
-                container.innerHTML = html;
-            } catch { container.innerHTML = '<div class="error-msg">Erreur de chargement</div>'; }
-        }
-
-        function closeLeaderboard() {
-            document.getElementById('leaderboardModal').classList.remove('visible');
-            document.body.classList.remove('no-scroll');
         }
 
         // --- Markdown light parser ---
