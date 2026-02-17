@@ -424,6 +424,7 @@
                 const res = await fetch('/auth/me');
                 if (res.ok) {
                     const user = await res.json();
+                    console.log('[DEBUG] /auth/me response:', JSON.stringify({isMember: user.isMember, isPartner: user.isPartner, creditsMax: user.creditsMax, roles: user.roles}));
                     currentUser = user;
 
                     // If user is banned, show ban screen

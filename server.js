@@ -654,6 +654,7 @@ app.get('/auth/discord/callback', async (req, res) => {
 
 // Get current user
 app.get('/auth/me', async (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
     if (req.session && req.session.user) {
         // Refresh roles via Bot token
         const freshRoles = await fetchMemberRoles(req.session.user.id);
@@ -663,15 +664,18 @@ app.get('/auth/me', async (req, res) => {
         const banInfo = banned ? loadBans()[req.session.user.id] : null;
         const userWarns = getUserWarns(req.session.user.id);
         const isModerator = MODERATOR_ROLE_ID && req.session.user.roles && req.session.user.roles.includes(MODERATOR_ROLE_ID);
+        const memberCheck = !!isMember(req.session.user);
+        const partnerCheck = !!isPartner(req.session.user);
         const dailyLimit = getUserDailyLimit(req.session.user);
+        console.log(`[DEBUG /auth/me] user=${req.session.user.username} roles=${JSON.stringify(req.session.user.roles)} MEMBER_ROLE_ID=${MEMBER_ROLE_ID} isMember=${memberCheck} isPartner=${partnerCheck} dailyLimit=${dailyLimit}`);
         const { accessToken, ...safeUser } = req.session.user;
-        return res.json({
+        const responseData = {
             ...safeUser,
             isAdmin: req.session.user.id === ADMIN_DISCORD_ID,
             isModerator: !!isModerator,
             isStaff: req.session.user.id === ADMIN_DISCORD_ID || !!isModerator,
-            isPartner: !!isPartner(req.session.user),
-            isMember: !!isMember(req.session.user),
+            isPartner: partnerCheck,
+            isMember: memberCheck,
             unlimitedGenerations: hasUnlimitedGenerations(req.session.user),
             creditsUsed: hasUnlimitedGenerations(req.session.user) ? 0 : getUserDailyCredits(req.session.user.id),
             creditsMax: dailyLimit,
@@ -679,7 +683,9 @@ app.get('/auth/me', async (req, res) => {
             banned,
             banInfo,
             warns: userWarns
-        });
+        };
+        console.log(`[DEBUG /auth/me] response.isMember=${responseData.isMember} response.creditsMax=${responseData.creditsMax}`);
+        return res.json(responseData);
     }
     res.status(401).json({ error: 'Non authentifie' });
 });
@@ -867,7 +873,7 @@ app.post('/admin/maintenance', requireAdmin, (req, res) => {
 });
 
 // --- Admin User Lookup ---
-app.get('/admin/user/:id', requireStaff, (req, res) => {
+app.get('/admin/user/:id', requireStaff, async (req, res) => {
     const userId = req.params.id.trim();
     const filePath = getUserDataPath(userId);
     const bans = loadBans();
@@ -885,6 +891,19 @@ app.get('/admin/user/:id', requireStaff, (req, res) => {
 
     const userWarns = getUserWarns(userId);
 
+    // Fetch les roles Discord pour calculer la vraie limite
+    const roles = await fetchMemberRoles(userId) || [];
+    const fakeUser = { id: userId, roles };
+    const dailyLimit = getUserDailyLimit(fakeUser);
+    const unlimited = hasUnlimitedGenerations(fakeUser);
+
+    // Determiner le role
+    let userRole = 'Visiteur';
+    if (userId === ADMIN_DISCORD_ID) userRole = 'Admin';
+    else if (isStaff(fakeUser)) userRole = 'Moderateur';
+    else if (isPartner(fakeUser)) userRole = 'Partenaire';
+    else if (isMember(fakeUser)) userRole = 'Membre';
+
     const today = new Date().toISOString().slice(0, 10);
     const creditsUsed = userData && userData._creditsDate === today ? (userData._creditsUsed || 0) : 0;
 
@@ -900,7 +919,9 @@ app.get('/admin/user/:id', requireStaff, (req, res) => {
         warns: userWarns,
         hasToken: !!userData?.accessToken,
         creditsUsed,
-        creditsMax: DAILY_TITLE_LIMIT // valeur par defaut pour l'admin panel
+        creditsMax: dailyLimit,
+        unlimitedGenerations: unlimited,
+        userRole
     });
 });
 

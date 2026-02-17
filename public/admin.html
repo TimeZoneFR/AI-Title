@@ -381,6 +381,7 @@
                     ${email ? '<div class="um-email" style="color:#71717a;font-size:0.82rem;">' + escapeHtml(hidden ? maskedEmail : email) + '</div>' : ''}
                 </div>
                 ${data.banned ? '<span class="um-badge um-badge-banned">BANNI</span>' : '<span class="um-badge um-badge-ok">ACTIF</span>'}
+                ${data.userRole ? '<span class="um-badge um-badge-role-' + data.userRole.toLowerCase() + '">' + escapeHtml(data.userRole) + '</span>' : ''}
                 ${(data.warns || []).length > 0 ? '<span class="um-badge um-badge-warned">' + data.warns.length + ' WARN' + (data.warns.length > 1 ? 'S' : '') + '</span>' : ''}
             </div>`;
 
@@ -389,7 +390,7 @@
                 <div class="um-info-item"><span class="um-info-label">Derniere connexion</span><span class="um-info-value">${lastLogin}</span></div>
                 <div class="um-info-item"><span class="um-info-label">Presets</span><span class="um-info-value">${data.presetsCount}</span></div>
                 <div class="um-info-item"><span class="um-info-label">Titres generes</span><span class="um-info-value">${data.titleHistory.length} sessions</span></div>
-                <div class="um-info-item"><span class="um-info-label">Credits aujourd'hui</span><span class="um-info-value">${data.creditsUsed || 0} / ${data.creditsMax || 20}</span></div>
+                <div class="um-info-item"><span class="um-info-label">Credits aujourd'hui</span><span class="um-info-value">${data.unlimitedGenerations ? '∞' : (((data.creditsMax || 20) - (data.creditsUsed || 0)) + ' / ' + (data.creditsMax || 20))}</span></div>
                 ${hidden ? '' : '<div class="um-info-item"><span class="um-info-label">Token valide</span><span class="um-info-value">' + (data.hasToken ? 'Oui' : 'Non') + '</span></div>'}
             </div>`;
 
