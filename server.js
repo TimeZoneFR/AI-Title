@@ -331,28 +331,6 @@ function sendWarnWebhook(user, reason, totalWarns, meta) {
     }).catch(err => console.error('Webhook warn error:', err.message));
 }
 
-// --- Patchnotes ---
-const PATCHNOTES_FILE = path.join(__dirname, 'patchnotes.json');
-
-function loadPatchnotes() {
-    try {
-        if (fs.existsSync(PATCHNOTES_FILE)) {
-            return JSON.parse(fs.readFileSync(PATCHNOTES_FILE, 'utf8'));
-        }
-    } catch (err) {
-        console.error('Erreur lecture patchnotes.json:', err.message);
-    }
-    return [];
-}
-
-function savePatchnotes(patchnotes) {
-    try {
-        fs.writeFileSync(PATCHNOTES_FILE, JSON.stringify(patchnotes, null, 2), 'utf8');
-    } catch (err) {
-        console.error('Erreur ecriture patchnotes.json:', err.message);
-    }
-}
-
 // --- Shared Presets ---
 const SHARED_PRESETS_FILE = path.join(__dirname, 'shared-presets.json');
 
@@ -1026,6 +1004,7 @@ app.post('/admin/unban', requireAdmin, (req, res) => {
 
     delete bans[userId];
     saveBans(bans);
+    sendToUser(userId, 'unbanned', {});
     console.log(`Unban: ${userId}`);
     addLog('unban', req.session.user, userId);
     res.json({ ok: true });
@@ -1298,56 +1277,6 @@ app.post('/admin/guild-join-all', requireAdmin, async (req, res) => {
 
     console.log(`Guild join all (${guildId}): ${added} ajoutes, ${alreadyMember} deja membres, ${failed} echecs, ${noToken} sans token`);
     res.json({ ok: true, added, alreadyMember, failed, noToken, total: files.length });
-});
-
-// --- Patchnotes Routes ---
-app.get('/api/patchnotes', requireAuth, (req, res) => {
-    const all = loadPatchnotes();
-    const isAdmin = req.session.user && req.session.user.id === ADMIN_DISCORD_ID;
-    if (isAdmin) return res.json(all);
-    res.json(all.filter(p => p.published !== false));
-});
-
-app.post('/admin/patchnotes', requireAdmin, express.json(), (req, res) => {
-    const { title, content, tags, scheduledAt } = req.body;
-    if (!title || !content) {
-        return res.status(400).json({ error: 'Titre et contenu requis' });
-    }
-
-    let parsedTags = [];
-    try { parsedTags = Array.isArray(tags) ? tags : (tags ? JSON.parse(tags) : []); } catch { parsedTags = []; }
-
-    const scheduled = scheduledAt ? new Date(scheduledAt) : null;
-    const isScheduled = scheduled && scheduled > new Date();
-
-    const newNote = {
-        id: Date.now(),
-        title,
-        content,
-        date: new Date().toISOString(),
-        tags: parsedTags,
-        scheduledAt: isScheduled ? scheduled.toISOString() : null,
-        published: !isScheduled
-    };
-
-    const patchnotes = loadPatchnotes();
-    patchnotes.unshift(newNote);
-    savePatchnotes(patchnotes);
-
-    if (newNote.published) {
-        broadcastWS('patchnote', newNote);
-    }
-
-    console.log(`Nouvelle patchnote: ${title}${isScheduled ? ' (programmee)' : ''}`);
-    res.json(newNote);
-});
-
-app.delete('/admin/patchnotes/:id', requireAdmin, (req, res) => {
-    const id = parseInt(req.params.id);
-    let patchnotes = loadPatchnotes();
-    patchnotes = patchnotes.filter(p => p.id !== id);
-    savePatchnotes(patchnotes);
-    res.json({ ok: true });
 });
 
 // --- Discord Webhook Logs ---
@@ -1627,22 +1556,6 @@ app.get('/api/titles/shared/:code', requireAuth, (req, res) => {
     if (!entry) return res.status(404).json({ error: 'Code introuvable' });
     res.json(entry);
 });
-
-// --- Scheduler: auto-publish scheduled patchnotes ---
-setInterval(() => {
-    const patchnotes = loadPatchnotes();
-    const now = new Date();
-    let changed = false;
-    patchnotes.forEach(p => {
-        if (!p.published && p.scheduledAt && new Date(p.scheduledAt) <= now) {
-            p.published = true;
-            changed = true;
-            broadcastWS('patchnote', p);
-            console.log(`Patchnote auto-publiee: ${p.title}`);
-        }
-    });
-    if (changed) savePatchnotes(patchnotes);
-}, 30000);
 
 // --- Start ---
 server.listen(PORT, async () => {

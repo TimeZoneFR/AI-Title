@@ -8,37 +8,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
-    <style>
-        .transition-loading {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: #09090b;
-            z-index: 9999;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: opacity 0.2s ease;
-        }
-        .transition-loading.visible {
-            display: flex;
-            opacity: 1;
-        }
-        .transition-loading.fade-out {
-            opacity: 0;
-        }
-        .transition-spinner {
-            width: 44px;
-            height: 44px;
-            border: 3px solid rgba(145, 71, 255, 0.2);
-            border-top-color: #9147ff;
-            border-radius: 50%;
-            animation: spin 0.75s linear infinite;
-        }
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-    </style>
 </head>
 <body class="no-scroll">
     <div class="bg-glow"></div>
@@ -71,11 +40,6 @@
             </div>
         </div>
 
-        <!-- Transition Loading -->
-        <div class="transition-loading" id="transitionLoading">
-            <div class="transition-spinner"></div>
-        </div>
-
         <!-- Maintenance Screen -->
         <div class="maintenance-screen" id="maintenanceScreen">
             <div class="maintenance-card">
@@ -106,10 +70,7 @@
                     <span class="user-role-badge" id="userRoleBadge" style="display:none;"></span>
                 </div>
                 <span class="credits-counter" id="creditsCounter" style="display:none;"></span>
-                <button class="btn-patchnotes" onclick="openPatchnotes()">
-                    Patchnotes
-                    <span class="patchnote-badge" id="patchnoteBadge"></span>
-                </button>
+                <a class="btn-discord-join" href="https://discord.gg/votre-lien" target="_blank" rel="noopener">Rejoindre Discord</a>
                 <button class="btn-logout" onclick="logout()">Deconnexion</button>
             </div>
 
@@ -291,20 +252,6 @@
         </footer>
     </div>
 
-    <!-- Modal Patchnotes -->
-    <div class="modal-overlay" id="patchnotesModal" onclick="if(event.target===this) closePatchnotes()">
-        <div class="modal">
-            <div class="modal-header">
-                <h2>Patchnotes</h2>
-                <button class="modal-close" onclick="closePatchnotes()">&times;</button>
-            </div>
-            <div class="modal-body" id="patchnotesModalBody">
-                <p style="color: #52525b;">Aucune patchnote pour le moment.</p>
-            </div>
-        </div>
-    </div>
-
-
     <!-- Modal CGU -->
     <div class="modal-overlay" id="cguModal" onclick="if(event.target===this) closeCGU()">
         <div class="modal">
@@ -384,8 +331,6 @@
         let activePreset = null;
         let editingPresetId = null;
         let titleHistory = [];
-        let lastReadPatchnote = 0;
-        let patchnotesList = [];
         let ws = null;
         let serverVersion = null;
         let maintenanceActive = false;
@@ -413,7 +358,7 @@
                     }
                 }
                 if (e.key === 'Escape') {
-                    closePatchnotes(); closeCGU();
+                    closeCGU();
                 }
                 if (e.ctrlKey && e.key === 'c') {
                     const hovered = document.querySelector('.result-item.hovered');
@@ -500,11 +445,16 @@
         }
 
         async function showApp(user) {
-            removeSplash();
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('maintenanceScreen').classList.remove('visible');
-            document.getElementById('appContent').classList.add('visible');
-            document.body.classList.remove('no-scroll');
+            const container = document.querySelector('.container');
+            container.style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('maintenanceScreen').classList.remove('visible');
+                document.getElementById('banScreen').classList.remove('visible');
+                document.getElementById('appContent').classList.add('visible');
+                document.body.classList.remove('no-scroll');
+                container.style.opacity = '1';
+            }, 2);
             document.getElementById('userName').textContent = user.username;
             const avatarUrl = user.avatar
                 ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`
@@ -547,9 +497,6 @@
             // Charger les donnees de l'utilisateur depuis le serveur
             await loadUserData();
 
-            // Charger les patchnotes
-            await loadPatchnotes();
-
             // Check shared title in URL
             const sharedCode = new URLSearchParams(window.location.search).get('shared');
             if (sharedCode) {
@@ -574,37 +521,29 @@
         }
 
         function showMaintenance() {
-            removeSplash();
+            const container = document.querySelector('.container');
+            container.style.opacity = '0';
             document.body.classList.add('no-scroll');
-            const loader = document.getElementById('transitionLoading');
-            loader.classList.add('visible');
             setTimeout(() => {
-                loader.classList.add('fade-out');
-                setTimeout(() => {
-                    loader.classList.remove('visible', 'fade-out');
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('appContent').classList.remove('visible');
-                    document.getElementById('banScreen').classList.remove('visible');
-                    document.getElementById('maintenanceScreen').classList.add('visible');
-                }, 200);
-            }, 1500);
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContent').classList.remove('visible');
+                document.getElementById('banScreen').classList.remove('visible');
+                document.getElementById('maintenanceScreen').classList.add('visible');
+                container.style.opacity = '1';
+            }, 2);
         }
 
         function showBanned(banInfo) {
-            removeSplash();
+            const container = document.querySelector('.container');
+            container.style.opacity = '0';
             document.body.classList.add('no-scroll');
-            const loader = document.getElementById('transitionLoading');
-            loader.classList.add('visible');
             setTimeout(() => {
-                loader.classList.add('fade-out');
-                setTimeout(() => {
-                    loader.classList.remove('visible', 'fade-out');
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('appContent').classList.remove('visible');
-                    document.getElementById('maintenanceScreen').classList.remove('visible');
-                    document.getElementById('banScreen').classList.add('visible');
-                }, 200);
-            }, 1500);
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContent').classList.remove('visible');
+                document.getElementById('maintenanceScreen').classList.remove('visible');
+                document.getElementById('banScreen').classList.add('visible');
+                container.style.opacity = '1';
+            }, 2);
 
             const detailsDiv = document.getElementById('banDetails');
             let html = '';
@@ -643,7 +582,6 @@
                     const data = await res.json();
                     presets = data.presets || [];
                     titleHistory = data.titleHistory || [];
-                    lastReadPatchnote = data.lastReadPatchnote || 0;
                     favorites = data.favorites || [];
                     votes = data.votes || {};
                     renderPresets();
@@ -660,7 +598,7 @@
                 await fetch('/api/userdata', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ presets, titleHistory, lastReadPatchnote, favorites, votes })
+                    body: JSON.stringify({ presets, titleHistory, favorites, votes })
                 });
             } catch (err) {
                 console.error('Erreur sauvegarde donnees:', err);
@@ -1468,14 +1406,12 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
                         }
                     }
 
-                    if (event === 'patchnote') {
-                        patchnotesList.unshift(data);
-                        updatePatchnoteBadge();
-                        if (currentUser) openPatchnotes();
-                    }
-
                     if (event === 'banned') {
                         showBanned(data);
+                    }
+
+                    if (event === 'unbanned') {
+                        checkAuth();
                     }
 
                     if (event === 'warned') {
@@ -1493,99 +1429,6 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             ws.addEventListener('error', () => { /* gere par close */ });
         }
 
-        // --- Patchnotes ---
-        async function loadPatchnotes() {
-            try {
-                const res = await fetch('/api/patchnotes');
-                if (res.ok) {
-                    patchnotesList = await res.json();
-                    updatePatchnoteBadge();
-                }
-            } catch (err) {
-                console.error('Erreur chargement patchnotes:', err);
-            }
-        }
-
-        function updatePatchnoteBadge() {
-            const badge = document.getElementById('patchnoteBadge');
-            const unread = patchnotesList.filter(p => p.published !== false && p.id > lastReadPatchnote).length;
-            if (unread > 0) {
-                badge.textContent = unread;
-                badge.classList.add('visible');
-            } else {
-                badge.textContent = '';
-                badge.classList.remove('visible');
-            }
-        }
-
-        async function openPatchnotes() {
-            if (!patchnotesList || patchnotesList.length === 0) {
-                await loadPatchnotes();
-            }
-            const body = document.getElementById('patchnotesModalBody');
-            const isAdmin = currentUser && currentUser.isAdmin;
-            const visibleNotes = isAdmin ? patchnotesList : patchnotesList.filter(p => p.published !== false);
-
-            if (visibleNotes.length === 0) {
-                body.innerHTML = '<p style="color: #52525b;">Aucune patchnote pour le moment.</p>';
-            } else {
-                let savedState = {};
-                try { savedState = JSON.parse(localStorage.getItem('patchnoteCollapsed') || '{}'); } catch {}
-
-                body.innerHTML = visibleNotes.map((p, i) => {
-                    try {
-                        const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-                        const tags = (p.tags || []).map(t => `<span class="tag-badge tag-${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
-                        const scheduled = p.published === false ? '<span class="scheduled-badge">Programmee</span>' : '';
-                        const isCollapsed = savedState.hasOwnProperty(p.id) ? savedState[p.id] : i > 0;
-                        const collapsed = isCollapsed ? ' collapsed' : '';
-
-                        return `<div class="patchnote-item${collapsed}" data-patchnote-id="${p.id}">
-                            <div class="patchnote-item-header" onclick="togglePatchnoteCollapse(this)">
-                                <div>
-                                    <h3>${escapeHtml(p.title || '')} ${scheduled}</h3>
-                                    ${tags ? '<div class="patchnote-tags-display">' + tags + '</div>' : ''}
-                                </div>
-                                <div class="patchnote-header-right">
-                                    <span class="patchnote-date">${date}</span>
-                                    <span class="patchnote-chevron">&#9660;</span>
-                                </div>
-                            </div>
-                            <div class="patchnote-content">${renderMarkdown(p.content || '')}</div>
-                        </div>`;
-                    } catch (err) {
-                        console.error('Erreur rendu patchnote:', p.id, err);
-                        return `<div class="patchnote-item"><p style="color:#fca5a5;">Erreur de rendu pour cette patchnote</p></div>`;
-                    }
-                }).join('');
-            }
-            document.getElementById('patchnotesModal').classList.add('visible');
-            document.body.style.overflow = 'hidden';
-
-            // Marquer comme lu
-            const publishedNotes = patchnotesList.filter(p => p.published !== false);
-            if (publishedNotes.length > 0) {
-                lastReadPatchnote = publishedNotes[0].id;
-                updatePatchnoteBadge();
-                saveUserData();
-            }
-        }
-
-        function closePatchnotes() {
-            document.getElementById('patchnotesModal').classList.remove('visible');
-            document.body.style.overflow = '';
-        }
-
-        function togglePatchnoteCollapse(header) {
-            const item = header.parentElement;
-            item.classList.toggle('collapsed');
-            const id = item.dataset.patchnoteId;
-            let savedState = {};
-            try { savedState = JSON.parse(localStorage.getItem('patchnoteCollapsed') || '{}'); } catch {}
-            savedState[id] = item.classList.contains('collapsed');
-            localStorage.setItem('patchnoteCollapsed', JSON.stringify(savedState));
-        }
-
         // --- CGU Modal ---
         function openCGU() {
             document.getElementById('cguModal').classList.add('visible');
@@ -1595,11 +1438,6 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
         function closeCGU() {
             document.getElementById('cguModal').classList.remove('visible');
             document.body.style.overflow = '';
-        }
-
-        function getTagClass(tag) {
-            const map = { 'Nouveau': 'nouveau', 'Fix': 'fix', 'Amelioration': 'amelioration', 'Important': 'important' };
-            return map[tag] || 'custom';
         }
 
         // --- Custom Select Dropdowns ---

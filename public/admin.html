@@ -130,55 +130,6 @@
                 </div>
             </div>
 
-            <!-- Patchnotes (admin only) -->
-            <div class="admin-section admin-only" id="patchnotesSection">
-                <h3 class="admin-section-title">Publier une Patchnote</h3>
-                <div class="patchnote-form">
-                    <input type="text" id="patchnoteTitle" placeholder="Titre de la patchnote" class="patchnote-input">
-                    <textarea id="patchnoteContent" placeholder="Contenu de la patchnote..." class="patchnote-textarea"></textarea>
-
-                    <!-- Tags -->
-                    <div class="patchnote-tags-section">
-                        <label class="patchnote-label">Tags</label>
-                        <div class="patchnote-tags-row">
-                            <button type="button" class="tag-toggle" data-tag="Nouveau" onclick="togglePatchnoteTag(this)">Nouveau</button>
-                            <button type="button" class="tag-toggle" data-tag="Fix" onclick="togglePatchnoteTag(this)">Fix</button>
-                            <button type="button" class="tag-toggle" data-tag="Amelioration" onclick="togglePatchnoteTag(this)">Amelioration</button>
-                            <button type="button" class="tag-toggle" data-tag="Important" onclick="togglePatchnoteTag(this)">Important</button>
-                        </div>
-                        <div class="patchnote-custom-tag-row">
-                            <input type="text" id="customTagInput" placeholder="Tag personnalise..." class="patchnote-input" style="flex:1;">
-                            <button type="button" class="btn-add-tag" onclick="addCustomTag()">+</button>
-                        </div>
-                        <div class="patchnote-selected-tags" id="selectedTagsList"></div>
-                    </div>
-
-                    <!-- Schedule -->
-                    <div class="patchnote-schedule-section">
-                        <label class="patchnote-schedule-toggle">
-                            <input type="checkbox" id="scheduleToggle" onchange="toggleSchedule()">
-                            <span>Programmer la publication</span>
-                        </label>
-                        <input type="datetime-local" id="scheduleDateTime" class="patchnote-input patchnote-schedule-input" style="display:none;">
-                    </div>
-
-                    <div class="patchnote-form-actions">
-                        <button class="btn-preview" onclick="previewPatchnote()">Apercu</button>
-                        <button class="btn-publish" onclick="publishPatchnote()">Publier</button>
-                    </div>
-                </div>
-
-                <!-- Preview -->
-                <div class="patchnote-preview" id="patchnotePreview" style="display:none;">
-                    <div class="patchnote-preview-header">
-                        <span>Apercu</span>
-                        <button class="patchnote-preview-close" onclick="document.getElementById('patchnotePreview').style.display='none'">&times;</button>
-                    </div>
-                    <div class="patchnote-preview-body" id="patchnotePreviewBody"></div>
-                </div>
-
-                <div id="adminPatchnotesList" class="admin-patchnotes-list"></div>
-            </div>
         </div>
     </div>
 
@@ -198,8 +149,6 @@
     <script>
         // --- State ---
         let currentUser = null;
-        let selectedTags = [];
-        let patchnotesList = [];
         let confidentialMode = localStorage.getItem('confidentialMode') === 'true';
         let currentModalUserId = null;
         let ws = null;
@@ -237,9 +186,6 @@
                         updateMaintenanceLabel(data.enabled);
                     }
 
-                    if (event === 'patchnote') {
-                        loadPatchnotes();
-                    }
                 } catch {}
             });
 
@@ -300,7 +246,6 @@
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = '');
                 loadAdminStats();
                 loadAdminLogs();
-                loadPatchnotes();
             } else {
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
             }
@@ -755,155 +700,6 @@
                 </div>`;
             });
             container.innerHTML = html;
-        }
-
-        // --- Patchnotes ---
-        async function loadPatchnotes() {
-            try {
-                const res = await fetch('/api/patchnotes');
-                if (res.ok) { patchnotesList = await res.json(); renderAdminPatchnotes(); }
-            } catch {}
-        }
-
-        let selectedTagsList = [];
-        function togglePatchnoteTag(btn) {
-            btn.classList.toggle('active');
-            const tag = btn.dataset.tag;
-            if (btn.classList.contains('active')) { if (!selectedTags.includes(tag)) selectedTags.push(tag); }
-            else { selectedTags = selectedTags.filter(t => t !== tag); }
-            renderSelectedTags();
-        }
-
-        function addCustomTag() {
-            const input = document.getElementById('customTagInput');
-            const tag = input.value.trim();
-            if (!tag || selectedTags.includes(tag)) return;
-            selectedTags.push(tag);
-            input.value = '';
-            renderSelectedTags();
-        }
-
-        function removeTag(tag) {
-            selectedTags = selectedTags.filter(t => t !== tag);
-            document.querySelectorAll('.tag-toggle').forEach(btn => {
-                if (btn.dataset.tag === tag) btn.classList.remove('active');
-            });
-            renderSelectedTags();
-        }
-
-        function renderSelectedTags() {
-            const container = document.getElementById('selectedTagsList');
-            if (selectedTags.length === 0) { container.innerHTML = ''; return; }
-            container.innerHTML = selectedTags.map(t =>
-                `<span class="selected-tag tag-${getTagClass(t)}">${escapeHtml(t)} <button onclick="removeTag('${escapeJs(t)}')">&times;</button></span>`
-            ).join('');
-        }
-
-        function renderMarkdown(text) {
-            let html = escapeHtml(text);
-            html = html.replace(/`([^`]+)`/g, '<code class="md-code">$1</code>');
-            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
-            html = html.replace(/__(.+?)__/g, '<u>$1</u>');
-            html = html.replace(/~~(.+?)~~/g, '<s>$1</s>');
-            html = html.replace(/^### (.+)$/gm, '<strong class="md-h3">$1</strong>');
-            html = html.replace(/^## (.+)$/gm, '<strong class="md-h2">$1</strong>');
-            html = html.replace(/^- (.+)$/gm, '<span class="md-li">&bull; $1</span>');
-            html = html.replace(/\n/g, '<br>');
-            return html;
-        }
-
-        function previewPatchnote() {
-            const title = document.getElementById('patchnoteTitle').value.trim();
-            const content = document.getElementById('patchnoteContent').value.trim();
-            if (!title && !content) { showToast('Rien a previsualiser', 'error'); return; }
-
-            const tags = selectedTags.map(t => `<span class="patchnote-tag ${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
-            const tagsHtml = tags ? `<div class="patchnote-tags-display">${tags}</div>` : '';
-
-            document.getElementById('patchnotePreviewBody').innerHTML = `
-                <div class="patchnote-item">
-                    <div class="patchnote-item-header" style="cursor:default;">
-                        <div>
-                            <h3>${escapeHtml(title || 'Sans titre')}</h3>
-                            ${tagsHtml}
-                        </div>
-                        <div class="patchnote-header-right">
-                            <span class="patchnote-date">${new Date().toLocaleDateString('fr-FR')}</span>
-                        </div>
-                    </div>
-                    <div class="patchnote-content">${renderMarkdown(content)}</div>
-                </div>`;
-            document.getElementById('patchnotePreview').style.display = 'block';
-        }
-
-        function getTagClass(tag) {
-            const map = { 'Nouveau': 'nouveau', 'Fix': 'fix', 'Amelioration': 'amelioration', 'Important': 'important' };
-            return map[tag] || 'custom';
-        }
-
-        function toggleSchedule() {
-            const input = document.getElementById('scheduleDateTime');
-            input.style.display = document.getElementById('scheduleToggle').checked ? 'block' : 'none';
-        }
-
-        function resetPatchnoteForm() {
-            document.getElementById('patchnoteTitle').value = '';
-            document.getElementById('patchnoteContent').value = '';
-            selectedTags = [];
-            document.querySelectorAll('.tag-toggle').forEach(b => b.classList.remove('active'));
-            document.getElementById('selectedTagsList').innerHTML = '';
-            document.getElementById('scheduleToggle').checked = false;
-            document.getElementById('scheduleDateTime').style.display = 'none';
-            document.getElementById('scheduleDateTime').value = '';
-            document.getElementById('customTagInput').value = '';
-        }
-
-        async function publishPatchnote() {
-            const title = document.getElementById('patchnoteTitle').value.trim();
-            const content = document.getElementById('patchnoteContent').value.trim();
-            if (!title || !content) return showToast('Titre et contenu requis.', 'warning');
-            const body = { title, content, tags: selectedTags };
-            if (document.getElementById('scheduleToggle').checked) {
-                const dt = document.getElementById('scheduleDateTime').value;
-                if (dt) body.scheduledAt = dt;
-            }
-            try {
-                const res = await fetch('/admin/patchnotes', {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(body)
-                });
-                if (res.ok) { resetPatchnoteForm(); showToast('Patchnote publiee !', 'success'); await loadPatchnotes(); }
-            } catch { showToast('Erreur', 'error'); }
-        }
-
-        async function deletePatchnote(id) {
-            try {
-                const res = await fetch(`/admin/patchnotes/${id}`, { method: 'DELETE' });
-                if (res.ok) { patchnotesList = patchnotesList.filter(p => p.id !== id); renderAdminPatchnotes(); showToast('Patchnote supprimee.', 'success'); }
-            } catch { showToast('Erreur', 'error'); }
-        }
-
-        function renderAdminPatchnotes() {
-            const container = document.getElementById('adminPatchnotesList');
-            if (!container) return;
-            if (patchnotesList.length === 0) { container.innerHTML = ''; return; }
-            container.innerHTML = '<h4 class="admin-subtitle">Patchnotes existantes</h4>' +
-                patchnotesList.map(p => {
-                    const date = new Date(p.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' });
-                    const tags = (p.tags || []).map(t => `<span class="tag-badge tag-${getTagClass(t)}">${escapeHtml(t)}</span>`).join('');
-                    const scheduled = p.published === false ? '<span class="scheduled-badge">Programmee</span>' : '';
-                    return `<div class="admin-patchnote-item">
-                        <div class="admin-patchnote-info">
-                            <div class="admin-patchnote-title-row"><strong>${escapeHtml(p.title)}</strong>${scheduled}</div>
-                            <div class="admin-patchnote-meta">
-                                <span class="admin-patchnote-date">${date}</span>
-                                ${tags ? '<span class="admin-patchnote-tags">' + tags + '</span>' : ''}
-                            </div>
-                        </div>
-                        <button class="btn-delete-patchnote" onclick="deletePatchnote(${p.id})">&#10005;</button>
-                    </div>`;
-                }).join('');
         }
 
         // --- Utils ---
