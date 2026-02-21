@@ -1,12 +1,17 @@
 require('dotenv').config();
+const http = require('http');
 const express = require('express');
 const session = require('express-session');
 const FileStore = require('session-file-store')(session);
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const { WebSocketServer } = require('ws');
+const cookieMod = require('cookie');
+const cookieSig = require('cookie-signature');
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const app = express();
+const server = http.createServer(app);
 app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
@@ -380,13 +385,70 @@ function generateShareCode() {
     return code;
 }
 
-// --- SSE (Server-Sent Events) ---
-const sseClients = [];
+// --- WebSocket ---
 const SERVER_VERSION = Date.now().toString();
+const wss = new WebSocketServer({ server, path: '/ws' });
 
-function broadcastSSE(event, data) {
-    const message = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-    sseClients.forEach(res => res.write(message));
+// Tous les clients connectes (pour broadcast global)
+const wsAllClients = new Set();
+// Par userId (pour messages cibles : ban, warn)
+const wsUserClients = new Map();
+
+function getSessionFromRequest(req) {
+    try {
+        const cookies = cookieMod.parse(req.headers.cookie || '');
+        const rawSid = cookies['connect.sid'];
+        if (!rawSid) return null;
+        const sid = rawSid.startsWith('s:')
+            ? cookieSig.unsign(rawSid.slice(2), SESSION_SECRET || 'change-me-in-production')
+            : rawSid;
+        if (!sid) return null;
+        const sessionPath = path.join(__dirname, 'sessions', `${sid}.json`);
+        if (fs.existsSync(sessionPath)) {
+            return JSON.parse(fs.readFileSync(sessionPath, 'utf8'));
+        }
+    } catch {}
+    return null;
+}
+
+wss.on('connection', (ws, req) => {
+    wsAllClients.add(ws);
+
+    let userId = null;
+    const sessionData = getSessionFromRequest(req);
+    if (sessionData && sessionData.user) {
+        userId = sessionData.user.id;
+        if (!wsUserClients.has(userId)) wsUserClients.set(userId, new Set());
+        wsUserClients.get(userId).add(ws);
+    }
+
+    // Envoyer la version du serveur a la connexion (+ etat maintenance actuel)
+    ws.send(JSON.stringify({ event: 'version', data: { version: SERVER_VERSION, maintenance: maintenanceMode } }));
+
+    ws.on('close', () => {
+        wsAllClients.delete(ws);
+        if (userId) {
+            const clients = wsUserClients.get(userId);
+            if (clients) {
+                clients.delete(ws);
+                if (clients.size === 0) wsUserClients.delete(userId);
+            }
+        }
+    });
+
+    ws.on('error', () => ws.terminate());
+});
+
+function broadcastWS(event, data) {
+    const msg = JSON.stringify({ event, data });
+    wsAllClients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
+}
+
+function sendToUser(userId, event, data) {
+    const clients = wsUserClients.get(userId);
+    if (!clients) return;
+    const msg = JSON.stringify({ event, data });
+    clients.forEach(ws => { if (ws.readyState === 1) ws.send(msg); });
 }
 
 // --- Middleware ---
@@ -697,23 +759,6 @@ app.get('/auth/logout', (req, res) => {
     });
 });
 
-// --- SSE Endpoint ---
-app.get('/api/events', (req, res) => {
-    res.setHeader('Content-Type', 'text/event-stream');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('Connection', 'keep-alive');
-    res.flushHeaders();
-
-    // Envoyer la version du serveur a la connexion
-    res.write(`event: version\ndata: ${JSON.stringify({ version: SERVER_VERSION })}\n\n`);
-
-    sseClients.push(res);
-    req.on('close', () => {
-        const index = sseClients.indexOf(res);
-        if (index !== -1) sseClients.splice(index, 1);
-    });
-});
-
 // --- Maintenance Status (public) ---
 app.get('/api/status', (req, res) => {
     res.json({ maintenance: maintenanceMode });
@@ -865,7 +910,7 @@ app.post('/admin/maintenance', requireAdmin, (req, res) => {
     const { enabled } = req.body;
     maintenanceMode = !!enabled;
     saveMaintenance(maintenanceMode);
-    broadcastSSE('maintenance', { enabled: maintenanceMode });
+    broadcastWS('maintenance', { enabled: maintenanceMode });
     sendStatusEmbed(maintenanceMode ? 'maintenance' : 'online');
     console.log(`Maintenance mode: ${maintenanceMode ? 'ON' : 'OFF'}`);
     addLog('maintenance', req.session.user, null, maintenanceMode ? 'ON' : 'OFF');
@@ -966,6 +1011,7 @@ app.post('/admin/ban', requireStaff, (req, res) => {
 
     bans[cleanId] = ban;
     saveBans(bans);
+    sendToUser(cleanId, 'banned', { reason: ban.reason, permanent: !!ban.permanent, until: ban.until || null });
     console.log(`Ban: ${cleanId} - ${ban.permanent ? 'Permanent' : 'Jusqu\'a ' + ban.until} - Raison: ${ban.reason}`);
     addLog('ban', req.session.user, cleanId, ban.reason);
     res.json({ ok: true, ban });
@@ -1066,6 +1112,7 @@ app.post('/admin/warn', requireStaff, (req, res) => {
 
     warns[cleanId].push(warn);
     saveWarns(warns);
+    sendToUser(cleanId, 'warned', { reason: warn.reason, total: warns[cleanId].length });
     console.log(`Warn: ${cleanId} - Raison: ${warn.reason} (Total: ${warns[cleanId].length})`);
     addLog('warn', req.session.user, cleanId, warn.reason);
     res.json({ ok: true, warn, total: warns[cleanId].length });
@@ -1288,7 +1335,7 @@ app.post('/admin/patchnotes', requireAdmin, express.json(), (req, res) => {
     savePatchnotes(patchnotes);
 
     if (newNote.published) {
-        broadcastSSE('patchnote', newNote);
+        broadcastWS('patchnote', newNote);
     }
 
     console.log(`Nouvelle patchnote: ${title}${isScheduled ? ' (programmee)' : ''}`);
@@ -1384,6 +1431,7 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
                         permanent: true
                     };
                     saveBans(bans);
+                    sendToUser(userId, 'banned', { reason: `Auto-ban : ${result.total} avertissements atteints`, permanent: true, until: null });
                     console.log(`Auto-ban: ${userId} - ${result.total} warns atteints`);
                     return res.status(403).json({
                         error: 'banned',
@@ -1391,6 +1439,7 @@ app.post('/api/generate', requireAuth, checkBan, checkMaintenance, async (req, r
                         permanent: true
                     });
                 }
+                sendToUser(userId, 'warned', { reason: moderation.reason, total: result.total });
             }
             return res.status(403).json({
                 error: 'warned',
@@ -1588,7 +1637,7 @@ setInterval(() => {
         if (!p.published && p.scheduledAt && new Date(p.scheduledAt) <= now) {
             p.published = true;
             changed = true;
-            broadcastSSE('patchnote', p);
+            broadcastWS('patchnote', p);
             console.log(`Patchnote auto-publiee: ${p.title}`);
         }
     });
@@ -1596,7 +1645,7 @@ setInterval(() => {
 }, 30000);
 
 // --- Start ---
-app.listen(PORT, async () => {
+server.listen(PORT, async () => {
     console.log(`Serveur demarre sur http://localhost:${PORT}`);
 
     // Diagnostic au demarrage

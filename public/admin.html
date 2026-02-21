@@ -202,14 +202,54 @@
         let patchnotesList = [];
         let confidentialMode = localStorage.getItem('confidentialMode') === 'true';
         let currentModalUserId = null;
+        let ws = null;
+        let serverVersion = null;
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
+            connectWS();
             checkAuth();
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') closeUserModal();
             });
         });
+
+        // --- WebSocket ---
+        function connectWS() {
+            if (ws) { try { ws.close(); } catch {} }
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/ws`);
+
+            ws.addEventListener('message', (e) => {
+                try {
+                    const { event, data } = JSON.parse(e.data);
+
+                    if (event === 'version') {
+                        if (serverVersion && serverVersion !== data.version) {
+                            location.reload();
+                        }
+                        serverVersion = data.version;
+                    }
+
+                    if (event === 'maintenance') {
+                        const toggle = document.getElementById('maintenanceToggle');
+                        if (toggle) toggle.checked = data.enabled;
+                        updateMaintenanceLabel(data.enabled);
+                    }
+
+                    if (event === 'patchnote') {
+                        loadPatchnotes();
+                    }
+                } catch {}
+            });
+
+            ws.addEventListener('close', () => {
+                ws = null;
+                setTimeout(() => connectWS(), 3000);
+            });
+
+            ws.addEventListener('error', () => { /* gere par close */ });
+        }
 
         // --- Auth ---
         async function checkAuth() {

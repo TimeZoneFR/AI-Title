@@ -8,11 +8,42 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
+    <style>
+        .transition-loading {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: #09090b;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .transition-loading.visible {
+            display: flex;
+            opacity: 1;
+        }
+        .transition-loading.fade-out {
+            opacity: 0;
+        }
+        .transition-spinner {
+            width: 44px;
+            height: 44px;
+            border: 3px solid rgba(145, 71, 255, 0.2);
+            border-top-color: #9147ff;
+            border-radius: 50%;
+            animation: spin 0.75s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
 </head>
 <body class="no-scroll">
     <div class="bg-glow"></div>
 
-    <div class="container">
+    <div class="container" style="opacity:0;transition:opacity 0.3s ease;">
         <header>
             <div class="logo">
                 <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -23,8 +54,8 @@
             <p>Titres & Notifications Twitch propulses par IA</p>
         </header>
 
-        <!-- Login Screen -->
-        <div class="login-screen" id="loginScreen">
+        <!-- Login Screen (hidden until auth check completes) -->
+        <div class="login-screen" id="loginScreen" style="display:none;">
             <div class="login-card">
                 <div class="logo" style="background: linear-gradient(135deg, #5865F2, #4752c4); box-shadow: 0 0 40px rgba(88, 101, 242, 0.3);">
                     <svg viewBox="0 0 28 20" xmlns="http://www.w3.org/2000/svg">
@@ -38,6 +69,11 @@
                 </a>
                 <div class="login-error" id="loginError"></div>
             </div>
+        </div>
+
+        <!-- Transition Loading -->
+        <div class="transition-loading" id="transitionLoading">
+            <div class="transition-spinner"></div>
         </div>
 
         <!-- Maintenance Screen -->
@@ -350,8 +386,9 @@
         let titleHistory = [];
         let lastReadPatchnote = 0;
         let patchnotesList = [];
-        let eventSource = null;
+        let ws = null;
         let serverVersion = null;
+        let maintenanceActive = false;
         let currentMode = 'normal';
         let favorites = [];
         let votes = {};
@@ -359,9 +396,9 @@
 
         // --- Init ---
         document.addEventListener('DOMContentLoaded', () => {
-            // Connexion SSE globale AVANT l'auth pour recevoir
+            // Connexion WebSocket globale AVANT l'auth pour recevoir
             // les events maintenance/patchnotes meme sans etre connecte
-            connectSSE();
+            connectWS();
             checkAuth();
 
             // Initialiser les custom selects
@@ -434,7 +471,8 @@
                     }
 
                     // If maintenance is on and user is not staff, show maintenance
-                    if (user.maintenance && !user.isStaff) {
+                    if ((user.maintenance || maintenanceActive) && !user.isStaff) {
+                        maintenanceActive = true;
                         showMaintenance();
                         return;
                     }
@@ -457,7 +495,12 @@
             }
         }
 
+        function removeSplash() {
+            document.querySelector('.container').style.opacity = '1';
+        }
+
         async function showApp(user) {
+            removeSplash();
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('maintenanceScreen').classList.remove('visible');
             document.getElementById('appContent').classList.add('visible');
@@ -491,14 +534,6 @@
             // Credits counter
             updateCreditsDisplay(user);
 
-            // Show warn banner if user has warnings
-            if (user.warns && user.warns.length > 0 && !user.isStaff) {
-                const lastWarn = user.warns[user.warns.length - 1];
-                const warnKey = 'warnDismissed_' + lastWarn.id;
-                if (!localStorage.getItem(warnKey)) {
-                    showWarnBanner(lastWarn, user.warns.length);
-                }
-            }
 
             // Show admin link if staff
             if (user.isAdmin || user.isModerator) {
@@ -530,6 +565,7 @@
         }
 
         function showLogin() {
+            removeSplash();
             document.getElementById('loginScreen').style.display = 'flex';
             document.getElementById('maintenanceScreen').classList.remove('visible');
             document.getElementById('banScreen').classList.remove('visible');
@@ -538,19 +574,37 @@
         }
 
         function showMaintenance() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContent').classList.remove('visible');
-            document.getElementById('banScreen').classList.remove('visible');
-            document.getElementById('maintenanceScreen').classList.add('visible');
+            removeSplash();
             document.body.classList.add('no-scroll');
+            const loader = document.getElementById('transitionLoading');
+            loader.classList.add('visible');
+            setTimeout(() => {
+                loader.classList.add('fade-out');
+                setTimeout(() => {
+                    loader.classList.remove('visible', 'fade-out');
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContent').classList.remove('visible');
+                    document.getElementById('banScreen').classList.remove('visible');
+                    document.getElementById('maintenanceScreen').classList.add('visible');
+                }, 200);
+            }, 1500);
         }
 
         function showBanned(banInfo) {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('appContent').classList.remove('visible');
-            document.getElementById('maintenanceScreen').classList.remove('visible');
-            document.getElementById('banScreen').classList.add('visible');
+            removeSplash();
             document.body.classList.add('no-scroll');
+            const loader = document.getElementById('transitionLoading');
+            loader.classList.add('visible');
+            setTimeout(() => {
+                loader.classList.add('fade-out');
+                setTimeout(() => {
+                    loader.classList.remove('visible', 'fade-out');
+                    document.getElementById('loginScreen').style.display = 'none';
+                    document.getElementById('appContent').classList.remove('visible');
+                    document.getElementById('maintenanceScreen').classList.remove('visible');
+                    document.getElementById('banScreen').classList.add('visible');
+                }, 200);
+            }, 1500);
 
             const detailsDiv = document.getElementById('banDetails');
             let html = '';
@@ -571,37 +625,6 @@
             detailsDiv.innerHTML = html;
         }
 
-        function showWarnBanner(lastWarn, totalWarns) {
-            // Remove existing banner if any
-            const existing = document.getElementById('warnBanner');
-            if (existing) existing.remove();
-
-            const banner = document.createElement('div');
-            banner.id = 'warnBanner';
-            banner.className = 'warn-banner';
-            const warnDate = new Date(lastWarn.date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
-            banner.innerHTML = `
-                <div class="warn-banner-content">
-                    <span class="warn-banner-icon">&#9888;</span>
-                    <div class="warn-banner-text">
-                        <strong>Avertissement (${totalWarns}/3)</strong>
-                        <span>${escapeHtml(lastWarn.reason)} &mdash; ${warnDate}</span>
-                    </div>
-                    <button class="warn-banner-close" onclick="dismissWarnBanner(${lastWarn.id})">&times;</button>
-                </div>
-            `;
-            const appContent = document.getElementById('appContent');
-            appContent.insertBefore(banner, appContent.querySelector('.user-bar').nextSibling);
-        }
-
-        function dismissWarnBanner(warnId) {
-            localStorage.setItem('warnDismissed_' + warnId, 'true');
-            const banner = document.getElementById('warnBanner');
-            if (banner) {
-                banner.classList.add('warn-banner-out');
-                setTimeout(() => banner.remove(), 300);
-            }
-        }
 
         async function logout() {
             await fetch('/auth/logout');
@@ -668,11 +691,6 @@
                     throw new Error('banned');
                 }
                 if (data403.error === 'warned') {
-                    showWarnBanner({
-                        id: data403.warn?.id || Date.now(),
-                        reason: data403.reason,
-                        date: data403.warn?.date || new Date().toISOString()
-                    }, data403.totalWarns);
                     showToast(`⚠️ Avertissement (${data403.totalWarns}/3) : ${data403.reason}`, 'warning', 8000);
                     throw new Error('warned');
                 }
@@ -1037,7 +1055,8 @@ Moderation :
 - Jamais de contenu haineux, raciste, discriminatoire, vulgaire
 - Jamais de references a des figures haineuses ou ideologies extremistes
 - Les references aux ADDICTIONS sont AUTORISEES en RP (drogue, alcool, substances) car c'est un element narratif courant en GTA RP. Exemples acceptes : trafic, deal, came, coke, meth, addiction, rehab, overdose, etc.
-- Titres adaptes a un public RP (maturite thematique toleree pour les addictions)`;
+- Les references a la MORT et la VIOLENCE RP sont AUTORISEES car c'est un element narratif central en GTA RP. Exemples acceptes : mort, enterrement, funerailles, assassinat, meurtre, execution, tuer, mourir, cadavre, tombe, deuil, vengeance, guerre, eliminer, liquidation, etc.
+- Titres adaptes a un public RP (maturite thematique toleree pour les addictions, la mort et la violence narrative)`;
 
                 userPrompt = `Genere ${count} titres de stream Twitch RP.
 
@@ -1411,48 +1430,67 @@ IMPORTANT : Chaque titre doit contenir 2 a 4 emojis bien choisis en rapport avec
             return str.replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n');
         }
 
-        // --- SSE (Server-Sent Events) ---
-        function connectSSE() {
-            if (eventSource) eventSource.close();
-            eventSource = new EventSource('/api/events');
+        // --- WebSocket ---
+        function connectWS() {
+            if (ws) { try { ws.close(); } catch {} }
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(`${protocol}//${location.host}/ws`);
 
-            // Auto-reload si le serveur a redemarre (nouveau code deploye)
-            eventSource.addEventListener('version', (e) => {
-                const data = JSON.parse(e.data);
-                if (serverVersion && serverVersion !== data.version) {
-                    location.reload();
-                }
-                serverVersion = data.version;
-            });
+            ws.addEventListener('message', (e) => {
+                try {
+                    const { event, data } = JSON.parse(e.data);
 
-            eventSource.addEventListener('maintenance', (e) => {
-                const data = JSON.parse(e.data);
-                if (data.enabled) {
-                    if (!(currentUser && currentUser.isStaff)) {
-                        showMaintenance();
+                    if (event === 'version') {
+                        if (serverVersion && serverVersion !== data.version) {
+                            location.reload();
+                        }
+                        serverVersion = data.version;
+                        // Verifier la maintenance a chaque (re)connexion WS
+                        if (data.maintenance) {
+                            maintenanceActive = true;
+                            if (!(currentUser && currentUser.isStaff)) {
+                                showMaintenance();
+                            }
+                        }
                     }
-                } else {
-                    if (!(currentUser && currentUser.isStaff)) {
-                        checkAuth();
-                    }
-                }
-            });
 
-            eventSource.addEventListener('patchnote', (e) => {
-                const note = JSON.parse(e.data);
-                patchnotesList.unshift(note);
-                updatePatchnoteBadge();
-                if (currentUser) {
-                    openPatchnotes();
-                }
+                    if (event === 'maintenance') {
+                        maintenanceActive = data.enabled;
+                        if (data.enabled) {
+                            if (!(currentUser && currentUser.isStaff)) {
+                                showMaintenance();
+                            }
+                        } else {
+                            maintenanceActive = false;
+                            if (!(currentUser && currentUser.isStaff)) {
+                                checkAuth();
+                            }
+                        }
+                    }
+
+                    if (event === 'patchnote') {
+                        patchnotesList.unshift(data);
+                        updatePatchnoteBadge();
+                        if (currentUser) openPatchnotes();
+                    }
+
+                    if (event === 'banned') {
+                        showBanned(data);
+                    }
+
+                    if (event === 'warned') {
+                        showToast(`⚠️ Avertissement (${data.total}/3) : ${data.reason}`, 'warning', 8000);
+                    }
+                } catch {}
             });
 
             // Reconnexion automatique en cas de coupure
-            eventSource.onerror = () => {
-                eventSource.close();
-                eventSource = null;
-                setTimeout(() => connectSSE(), 3000);
-            };
+            ws.addEventListener('close', () => {
+                ws = null;
+                setTimeout(() => connectWS(), 3000);
+            });
+
+            ws.addEventListener('error', () => { /* gere par close */ });
         }
 
         // --- Patchnotes ---
